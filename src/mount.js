@@ -109,6 +109,7 @@ export function autoMount(root = document) {
       mode: d.mode,
       view: d.view,
       height: d.height ? +d.height : undefined,
+      yLock: d.yLock != null ? d.yLock !== 'false' : undefined, // data-y-lock
       refreshSeconds: d.refresh ? +d.refresh : undefined,
     }).catch((e) => { console.error(e); el.textContent = 'Chart failed to load.'; });
   }));

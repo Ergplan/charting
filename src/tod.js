@@ -105,7 +105,8 @@ export function renderTod(chart) {
 
   // y domain
   let yMax = share ? 100 : 0;
-  if (!share) {
+  if (!share && chart.opts.yLock) yMax = chart._lockedMax(); // trend view: same scale for every day
+  else if (!share) {
     for (const c of cols) {
       yMax = Math.max(yMax, areas.reduce((a, x) => a + c.mean[x.key], 0));
       if (demand) yMax = Math.max(yMax, c.mean[demand.key]);

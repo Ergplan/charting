@@ -94,6 +94,7 @@ export const EnergyFlowBoard = forwardRef(function EnergyFlowBoard(props, ref) {
   useEffect(() => { if (first.current) { first.current = false; return; } handle?.load(data); }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { handle?.chart.setView(view); }, [handle, view]);
   useEffect(() => { handle?.chart.setTheme(theme, mode); }, [handle, theme, mode]);
+  useEffect(() => { if (options.yLock !== undefined && handle && handle.chart.opts.yLock !== options.yLock) handle.chart.setYLock(options.yLock); }, [handle, options.yLock]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return createElement('div', { className, style: { display: 'grid', gap, ...style } },
     showCards && createElement('div', { ref: cardsEl, className: cardsClassName }),

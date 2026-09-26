@@ -35,7 +35,7 @@ It works on **any website**: plain HTML with one `<script>` tag, React, Next.js,
 <div id="cards"></div>
 <div data-energy-flow data-src="/api/energy.json" data-cards="#cards"></div>
 
-<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.0.0/dist/energy-flow-chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.1.0/dist/energy-flow-chart.min.js"></script>
 ```
 
 That's all. The script finds every `[data-energy-flow]` element and mounts a chart on it.
@@ -50,6 +50,7 @@ That's all. The script finds every `[data-energy-flow]` element and mounts a cha
 | `data-mode` | `auto`, `light`, `dark` | `auto` |
 | `data-height` | chart height in px | `420` |
 | `data-refresh` | re-fetch `data-src` every N seconds (live updates) | off |
+| `data-y-lock` | start with the y axis locked (trend view) | off |
 
 You can also self-host the bundle: copy `dist/energy-flow-chart.min.js` into your static assets.
 
@@ -81,7 +82,7 @@ ES-module sites can import the single-file module instead:
 ### C. React / Next.js
 
 ```bash
-npm i github:Ergplan/charting#v1.0.0       # package name: energy-flow-chart
+npm i github:Ergplan/charting#v1.1.0       # package name: energy-flow-chart
 ```
 
 ```jsx
@@ -217,6 +218,8 @@ board.chart.setOptions({ todScale: 'share' });   // ToD columns filled to 100 %
 - keyboard: focus the chart, then `←` `→` (Shift = 1 h), `+` `−`, `PageUp` `PageDown`, `Esc`
 - `curve: 'step'` draws each block as a flat step; `bands` shades tariff hours
 
+**Lock Y (trend view)**: toggle it with the **Lock Y** button in the chart's top-right corner, or with `chart.setYLock(true)` / `yLock: true`. The y axis is then fixed to the **highest value anywhere in the loaded date range**, so stepping between days, zooming or switching ranges keeps one scale and trends compare honestly. In ToD it uses the highest single-day zone average. Hidden series are excluded, so the lock tightens when you hide a source. `yLockButton: false` hides the button; `onYLockChange(locked)` reports changes. It doesn't apply to ToD *Share %* (always 0–100 %).
+
 **ToD**
 - the range selected in the overview strip is what gets aggregated: one day, or all 7
 - hover a column → zone volume, price and cost per source in the band; the cards switch to that zone, and each sparkline shades the zone's blocks
@@ -317,6 +320,7 @@ chart.showAll();                    // everything
 chart.setRange(t0, t1);             // epoch-ms (wall-clock as UTC)
 chart.days();                       // [epoch-ms of each day] for building a day picker
 chart.setView('tod');
+chart.setYLock(true);               // trend view: y axis fixed to the highest value in the loaded range
 chart.setTheme('contrast', 'dark');
 chart.setOptions({ curve: 'step', bands: [...], height: 480 });
 chart.setTableVisible(true);        // accessible data table under the chart
@@ -377,6 +381,7 @@ TypeScript definitions ship in `types/`.
 | `refreshSeconds` | poll `url` | off |
 | `transform` | `(dataset) => dataset` | none |
 | `unit`, `locale`, `priceFormat`, `minSpanMinutes`, `navigator`, `legend`, `yMax` | misc | `kW`, `en-IN` |
+| `yLock`, `yLockButton` | lock y to the whole-range max / show the toggle | `false`, `true` |
 | `onRangeChange`, `onHover`, `onThemeChange` | callbacks | none |
 
 ### Series

@@ -28,6 +28,10 @@ export const css = `
   padding: 3px 8px; border-radius: 6px; border: 1px solid var(--efc-border);
 }
 .efc-reset:hover { background: var(--efc-band); }
+.efc-lock { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; color: var(--efc-ink2); }
+.efc-lock[aria-pressed="true"] { color: var(--efc-surface); background: var(--efc-accent); border-color: var(--efc-accent); }
+.efc-lock[aria-pressed="false"] .shackle { transform: translateX(4px) translateY(-1px); }
+.efc-lock:focus-visible, .efc-reset:focus-visible { outline: 2px solid var(--efc-accent); outline-offset: 1px; }
 .efc-reset[hidden] { display: none; }
 
 /* readout band: legend + live values, sits directly above the plot */

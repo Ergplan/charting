@@ -4,7 +4,7 @@
 import { createStore } from './store.js';
 import { getTheme, resolveMode, resolveSeriesColors, applyThemeVars } from './themes.js';
 import { indexSpan, nearestIndex, aggregator, parseClock, time } from './data.js';
-import { renderTod, todColumnAt, DEFAULT_TOD_ZONES } from './tod.js';
+import { renderTod, todColumnAt, computeTod, DEFAULT_TOD_ZONES } from './tod.js';
 import { fmtPrice, fmtMoney, fmtEnergy, fmtNumber, fmtBlockTime, fmtDay, fmtDayLong, fmtRange, fmtWeekday, niceTicks, timeTicks, isoDay } from './format.js';
 import { injectStyles } from './styles.js';
 import { toCSV, download, svgToPNG } from './export.js';
@@ -40,6 +40,8 @@ const DEFAULTS = {
   yLabel: 'Power (kW)',
   yMin: 0,
   yMax: null,
+  yLock: false, // true → y axis fixed to the highest value in the whole loaded range (trend view)
+  yLockButton: true, // show the "Lock Y" toggle in the chart
   curve: 'linear', // 'linear' | 'step'
   initialRange: 'last-day', // 'last-day' | 'all' | [t0, t1]
   minSpanMinutes: 60,
@@ -138,6 +140,57 @@ export class EnergyFlowChart {
     if (rerender) this.render();
     this.store.set({ themeRev: (this.store.get().themeRev || 0) + 1 });
     this.opts.onThemeChange?.(this.theme, this.modeResolved);
+  }
+
+  /** Lock the y axis to the highest value across the whole loaded range (trend view). */
+  setYLock(on) {
+    this.opts.yLock = !!on;
+    this.render();
+    this.opts.onYLockChange?.(this.opts.yLock);
+  }
+
+  /**
+   * Highest value the chart can draw anywhere in the loaded data, for the current view
+   * and visible series. Timeline: stack total / line per sample. ToD: per-day zone means
+   * (each day aggregated on its own, so a single day's column can reach the lock).
+   */
+  _lockedMax() {
+    const hidden = this.store.get().hidden;
+    const key = `${this.opts.view}|${[...hidden].sort()}|${this.data.t.length}|${this.data.t[this.data.t.length - 1]}|${this.opts.todScale}`;
+    if (this._lockCache?.key === key && this._lockCache.data === this.data) return this._lockCache.value;
+    const vis = this.series.filter((x) => !hidden.has(x.key));
+    const stacks = new Map();
+    for (const x of vis.filter((q) => q.type === 'area')) {
+      const k = x.stack === false ? `__solo_${x.key}` : x.stack;
+      if (!stacks.has(k)) stacks.set(k, []);
+      stacks.get(k).push(x);
+    }
+    const lines = vis.filter((q) => q.type === 'line');
+    let max = 0;
+    if (this.opts.view === 'tod') {
+      const areas = vis.filter((q) => q.type === 'area' && q.stack !== false);
+      const keys = vis.map((q) => q.key);
+      for (const d of this.days()) {
+        const [a, b] = indexSpan(this.data.t, d, d + DAY);
+        if (b < a || this.data.t[a] > d + DAY) continue;
+        for (const c of computeTod(this.data, this.opts.todZones, a, b, keys)) {
+          max = Math.max(max, areas.reduce((acc, q) => acc + c.mean[q.key], 0));
+          for (const l of lines) max = Math.max(max, c.mean[l.key]);
+        }
+      }
+    } else {
+      const n = this.data.t.length;
+      for (let i = 0; i < n; i++) {
+        for (const members of stacks.values()) {
+          let tot = 0;
+          for (const q of members) tot += Math.max(0, this.data.values[q.key]?.[i] || 0);
+          if (tot > max) max = tot;
+        }
+        for (const l of lines) { const v = this.data.values[l.key]?.[i] || 0; if (v > max) max = v; }
+      }
+    }
+    this._lockCache = { key, data: this.data, value: max };
+    return max;
   }
 
   /** 'timeline' (15-min stacked area) or 'tod' (one column per tariff zone, width = hours). */
@@ -251,6 +304,9 @@ export class EnergyFlowChart {
     // range label + reset, overlaid top-right on the day-label line (no extra row)
     this.topEl = h('div', { class: 'efc-range' }, this.plotEl);
     this.rangeLabel = h('span', {}, this.topEl);
+    this.lockBtn = h('button', { class: 'efc-reset efc-lock', type: 'button', 'aria-pressed': 'false', title: 'Fix the y axis to the highest value in the loaded date range, so days and zooms compare on one scale' }, this.topEl);
+    this.lockBtn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path class="shackle" d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Lock Y</span>'; // static markup
+    this.lockBtn.addEventListener('click', () => this.setYLock(!this.opts.yLock));
     this.resetBtn = h('button', { class: 'efc-reset', type: 'button', text: 'Reset zoom', hidden: '' }, this.topEl);
     this.resetBtn.addEventListener('click', () => this.store.set({ range: this._initialRange() }));
     this.svg = s('svg', { role: 'img', 'font-family': 'system-ui, -apple-system, Segoe UI, sans-serif' }, this.plotEl);
@@ -381,6 +437,7 @@ export class EnergyFlowChart {
       const v = this.data.values[ser.key] || [];
       for (let i = i0; i <= i1; i++) yMaxData = Math.max(yMaxData, v[i] || 0);
     }
+    if (this.opts.yLock && this.opts.yMax == null) yMaxData = this._lockedMax();
     const yt = niceTicks(this.opts.yMin, this.opts.yMax ?? (yMaxData * 1.06 || 1), Math.max(3, Math.round(ph / 70)));
     const yMin = yt.min;
     const yMax = this.opts.yMax ?? yt.max;
@@ -409,6 +466,10 @@ export class EnergyFlowChart {
     this.hit.setAttribute('width', pw);
     this.hit.setAttribute('height', ph);
     this.hit.style.cursor = this.opts.view === 'tod' ? 'pointer' : '';
+    const lockable = this.opts.yLockButton && !(this.opts.view === 'tod' && this.opts.todScale === 'share');
+    this.lockBtn.hidden = !lockable;
+    this.lockBtn.setAttribute('aria-pressed', String(!!this.opts.yLock));
+    this.lockBtn.querySelector('span').textContent = this.opts.yLock ? 'Y locked' : 'Lock Y';
     Object.entries({ x: m.left - 2, y: m.top - 2, width: pw + 4, height: ph + 4, stroke: this.t.accent }).forEach(([k, v]) => this.focusRing.setAttribute(k, v));
 
     const zoomed = Math.abs(t1 - t0 - (this._initialRange()[1] - this._initialRange()[0])) > MIN || Math.abs(t0 - this._initialRange()[0]) > MIN;

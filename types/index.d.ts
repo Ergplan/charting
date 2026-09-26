@@ -98,6 +98,11 @@ export interface ChartOptions {
   todZones?: TodZone[];
   /** 'absolute': height = mean kW so area = kWh. 'share': 100% columns. */
   todScale?: 'absolute' | 'share';
+  /** Fix the y axis to the highest value in the whole loaded range (trend view). Toggle: setYLock(). */
+  yLock?: boolean;
+  /** Show the built-in "Lock Y" toggle (default true). */
+  yLockButton?: boolean;
+  onYLockChange?: (locked: boolean) => void;
   /** false hides the range text overlaid top-right of the plot. */
   rangeLabel?: boolean;
   tooltip?: { render?: (el: HTMLElement, ctx: TooltipContext) => void; summary?: false; hideZero?: boolean; stack?: string; demand?: string };
@@ -119,6 +124,7 @@ export declare class EnergyFlowChart {
   setTheme(theme: string | Theme | ThemeInput, mode?: 'auto' | 'light' | 'dark'): void;
   setOptions(patch: Partial<ChartOptions>): void;
   setView(view: 'timeline' | 'tod'): void;
+  setYLock(on: boolean): void;
   readonly view: 'timeline' | 'tod';
   /** Columns from the last ToD render. */
   readonly todCols?: TodColumn[];
