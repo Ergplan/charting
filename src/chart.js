@@ -83,6 +83,7 @@ export class EnergyFlowChart {
         if (state.hover < a || state.hover > b) this.store.set({ hover: null });
       }
       if (changed.includes('range') && state.hoverZone) this.store.set({ hoverZone: null });
+      if (changed.includes('hidden')) this._applyHighlight(); // toggle state updates immediately; geometry next frame
       if (changed.includes('range') || changed.includes('hidden')) this._scheduleRender();
       else if (changed.includes('highlight')) this._applyHighlight();
       if (changed.includes('hover') || changed.includes('hoverZone')) this._drawHover();
@@ -240,11 +241,12 @@ export class EnergyFlowChart {
   exportCSV(filename) {
     const [i0, i1] = this.getVisibleSpan();
     const csv = toCSV(this.data, this.series, i0, i1, this.opts.unit);
-    download(new Blob([csv], { type: 'text/csv' }), filename || `energy-flow-${isoDay(this.data.t[i0])}.csv`);
+    download(new Blob([csv], { type: 'text/csv' }), filename || `energy-flow-${isoDay(this.store.get().range[0] + 1)}.csv`);
   }
   async exportPNG(filename, scale = 2) {
+    this.flush();
     const blob = await svgToPNG(this.svg, this.t.surface, scale);
-    download(blob, filename || `energy-flow-${isoDay(this.data.t[this.getVisibleSpan()[0]])}.png`);
+    download(blob, filename || `energy-flow-${isoDay(this.store.get().range[0] + 1)}.png`);
   }
 
   destroy() {
@@ -367,7 +369,19 @@ export class EnergyFlowChart {
 
   _scheduleRender() {
     if (this._raf) return;
-    this._raf = requestAnimationFrame(() => { this._raf = null; this.render(); });
+    // Coalesce into one frame. Hidden tabs pause rAF, so fall back to a timer there:
+    // live updates and toggles made while hidden must still land in the DOM.
+    const run = () => { if (!this._raf) return; this._raf = null; this.render(); };
+    this._raf = document.hidden ? setTimeout(run, 16) : requestAnimationFrame(run);
+  }
+
+  /** Apply any pending redraw now (e.g. right before exportPNG, or in tests). */
+  flush() {
+    if (!this._raf) return;
+    cancelAnimationFrame(this._raf);
+    clearTimeout(this._raf);
+    this._raf = null;
+    this.render();
   }
 
   /** Full redraw. Cheap enough (~700 pts × 7 series) to run on every range change. */
@@ -733,11 +747,17 @@ export class EnergyFlowChart {
       const [i0, i1] = this.span;
       const hov = st.hover != null && st.hover >= i0 && st.hover <= i1;
       const i = hov ? st.hover : i1;
-      val = (k) => this.data.values[k]?.[i] ?? 0;
-      priceOf = (k) => this.data.prices?.[k]?.[i] ?? NaN;
-      fmt = (v) => `${fmtNumber(v, 0, loc)} ${u}`;
-      whenMain = `${fmtDay(this.data.t[i] - 1)} · ${fmtBlockTime(this.data.t[i])}`;
-      whenSub = hov ? (this.data.block ? `Block ${this.data.block[i]}` : '') : 'Latest in view';
+      fmt = (v) => (Number.isFinite(v) ? `${fmtNumber(v, 0, loc)} ${u}` : '–');
+      if (i1 < i0) {
+        val = () => NaN;
+        whenMain = 'No data in view';
+        whenSub = 'pick another range';
+      } else {
+        val = (k) => this.data.values[k]?.[i] ?? 0;
+        priceOf = (k) => this.data.prices?.[k]?.[i] ?? NaN;
+        whenMain = `${fmtDay(this.data.t[i] - 1)} · ${fmtBlockTime(this.data.t[i])}`;
+        whenSub = hov ? (this.data.block ? `Block ${this.data.block[i]}` : '') : 'Latest in view';
+      }
       live = hov;
     }
     this.bandEl.classList.toggle('is-live', live);
@@ -811,7 +831,7 @@ export class EnergyFlowChart {
     const hoverAt = (px) => {
       const idx = nearestIndex(this.data.t, this.xInv(px));
       const [i0, i1] = this.span;
-      this.store.set({ hover: clamp(idx, i0, i1) });
+      this.store.set({ hover: i1 < i0 ? null : clamp(idx, i0, i1) });
       this.opts.onHover?.(idx);
     };
 
@@ -833,7 +853,7 @@ export class EnergyFlowChart {
       if (e.pointerType === 'touch' || this.opts.view === 'tod') return; // touch: tap = hover
       const [px] = pos(e);
       drag = { x0: px, x1: px };
-      hit.setPointerCapture(e.pointerId);
+      try { hit.setPointerCapture(e.pointerId); } catch { /* pen/synthetic pointers may refuse capture */ }
     });
     const end = (e) => {
       if (!drag) return;
@@ -886,6 +906,7 @@ export class EnergyFlowChart {
         return;
       }
       const [i0, i1] = this.span;
+      if (i1 < i0 && !['+', '=', '-', 'PageUp', 'PageDown'].includes(e.key)) return;
       let i = st.hover ?? i1;
       const [t0, t1] = st.range;
       const span = t1 - t0;
@@ -908,7 +929,7 @@ export class EnergyFlowChart {
         if (hv != null) this.srEl.textContent = this._describeIndex(hv);
       }
     });
-    hit.addEventListener('focus', () => { if (this.opts.view !== 'tod' && this.store.get().hover == null) this.store.set({ hover: this.span[1] }); });
+    hit.addEventListener('focus', () => { if (this.opts.view !== 'tod' && this.store.get().hover == null && this.span[1] >= this.span[0]) this.store.set({ hover: this.span[1] }); });
     hit.addEventListener('blur', () => this.store.set({ hover: null, hoverZone: null }));
   }
 
@@ -1006,7 +1027,7 @@ export class EnergyFlowChart {
         const [n0, n1] = this.store.get().range;
         drag = { mode: 'move', t0: n0, t1: n1, start: c };
       }
-      nav.setPointerCapture(e.pointerId);
+      try { nav.setPointerCapture(e.pointerId); } catch { /* see above */ }
       e.preventDefault();
     });
     nav.addEventListener('pointermove', (e) => {

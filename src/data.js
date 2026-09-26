@@ -180,9 +180,9 @@ export function nearestIndex(t, x) {
  * the END of their interval, so the 00:00 sample belongs to the previous day.
  */
 export function indexSpan(t, t0, t1) {
-  const i0 = bisect(t, t0 + 1);
-  const i1 = Math.min(t.length - 1, bisect(t, t1 + 1) - 1);
-  return [Math.min(i0, t.length - 1), Math.max(i1, i0)];
+  // An empty window (no samples inside) is returned honestly as i1 < i0; callers
+  // treat that as "no data in view" instead of borrowing a neighbouring sample.
+  return [bisect(t, t0 + 1), bisect(t, t1 + 1) - 1];
 }
 
 /**

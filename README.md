@@ -35,7 +35,7 @@ It works on **any website**: plain HTML with one `<script>` tag, React, Next.js,
 <div id="cards"></div>
 <div data-energy-flow data-src="/api/energy.json" data-cards="#cards"></div>
 
-<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.1.1/dist/energy-flow-chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.1.2/dist/energy-flow-chart.min.js"></script>
 ```
 
 That's all. The script finds every `[data-energy-flow]` element and mounts a chart on it.
@@ -82,7 +82,7 @@ ES-module sites can import the single-file module instead:
 ### C. React / Next.js
 
 ```bash
-npm i github:Ergplan/charting#v1.1.1       # package name: energy-flow-chart
+npm i github:Ergplan/charting#v1.1.2       # package name: energy-flow-chart
 ```
 
 ```jsx
@@ -325,6 +325,7 @@ chart.setTheme('contrast', 'dark');
 chart.setOptions({ curve: 'step', bands: [...], height: 480 });
 chart.setTableVisible(true);        // accessible data table under the chart
 chart.exportCSV();  chart.exportPNG();
+chart.flush();                      // apply a pending redraw now (redraws are batched per frame)
 await board.load('/api/energy?date=2026-09-25');   // swap data, stays pinned to "now"
 ```
 
@@ -473,9 +474,31 @@ tools/          build, dev server, xlsx → JSON converter
 ```bash
 npm install          # only dev dependency: esbuild
 npm run demo         # http://localhost:5178/demo/  and  /examples/plain-html/
-npm test             # 13 tests, including reconciliation against a real TOD export
+npm test             # unit tests (Node): data, prices, ToD maths, formatting, card selection
+npm run test:browser # 47 browser tests, headless Chrome/Edge/Chromium (auto-detected; BROWSER=… to override)
+npm run test:all     # both
 npm run build        # regenerate dist/ (commit the result)
 ```
+
+**What the tests cover.** The **unit tests** (`test/*.test.mjs`, 45 cases) check:
+- the data adapters (every input shape, missing or blank values, 5/15/30-minute blocks, start- or end-stamped data)
+- range handling, including windows with no data
+- prices (flat, ToD tariffs including ones that wrap midnight, arrays, functions) and volume-weighted averages
+- ToD aggregation over one or several days, zones with gaps, and zones that wrap midnight
+- Indian money formatting, and choosing cards by id
+- a reconciliation against a real TOD export, when the xlsx files are present
+
+The **browser tests** (`test/browser/`, 47 cases) run the real chart in a real DOM and check:
+- mounting from every input shape and from data attributes
+- hover readings in the band, with exact values, prices and the surplus/shortfall balance
+- keyboard control, linked cards, highlighting and toggling
+- the ToD view: column width ∝ hours and column area ∝ kWh, zone prices and cost, share mode
+- Lock Y axis in both views
+- zoom, pan and the overview strip; live reloads; empty, single-sample and all-zero data
+- themes, the table view, CSV/PNG export, protection against HTML in labels, cleanup on destroy
+- linked charts, resizing, phone width, and parity of the `<script>` bundle
+
+After every test the suite also asserts that no `NaN` or `Infinity` appears anywhere in the rendered DOM. You can open `http://localhost:5178/test/browser/` to watch the browser tests run.
 
 **Releasing:** bump `version` in `package.json`, `npm run build`, commit, then `git tag v1.x.y && git push --tags`. Consumers pin the tag: `github:Ergplan/charting#v1.x.y` for npm, or `cdn.jsdelivr.net/gh/Ergplan/charting@v1.x.y/dist/…` for the script tag.
 

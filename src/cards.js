@@ -201,6 +201,7 @@ export class EnergyCards {
   }
 
   _setValue(c, v) {
+    if (!Number.isFinite(v) && (this.spanAgg?.count ?? 1) <= 0) v = 0; // empty window reads as zero, not "-∞"
     const [num, unit] = splitUnit(this._format(c.m, v));
     c.value.replaceChildren(document.createTextNode(num));
     if (unit) { const u = document.createElement('small'); u.textContent = unit; c.value.appendChild(u); }
@@ -208,6 +209,7 @@ export class EnergyCards {
 
   _baseSub(m, agg, keys, v) {
     if (typeof m.description === 'function') return m.description(agg, v, this.data);
+    if (agg.count <= 0) return 'No data in view';
     if (m.description) return m.description;
     if (m.agg === 'max' && keys.length === 1) {
       const i = agg.argmax(keys[0]);

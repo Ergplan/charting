@@ -36,7 +36,7 @@ export function toDataset(input, cfg) {
  * Cards to show. `metrics` may mix preset card ids ('demand', 'grid', 'avgPrice', ...) with
  * full Metric objects; omitted → the preset's short default list (+ price card when priced).
  */
-function resolveMetrics(requested, preset, priced) {
+export function resolveMetrics(requested, preset, priced) {
   const library = [...(preset.metrics || []), ...(preset.priceMetrics || [])];
   const byId = (id) => {
     const m = library.find((x) => x.id === id);

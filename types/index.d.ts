@@ -125,6 +125,8 @@ export declare class EnergyFlowChart {
   setOptions(patch: Partial<ChartOptions>): void;
   setView(view: 'timeline' | 'tod'): void;
   setYLock(on: boolean): void;
+  /** Apply any pending (frame-coalesced) redraw immediately. */
+  flush(): void;
   readonly view: 'timeline' | 'tod';
   /** Columns from the last ToD render. */
   readonly todCols?: TodColumn[];

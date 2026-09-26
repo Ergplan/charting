@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>energy-flow-chart · browser tests</title>
+<style>
+  body { font: 13px/1.45 system-ui, sans-serif; margin: 0; padding: 20px; background: #f6f6f3; color: #0b0b0b; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  #status { font-weight: 700; margin-bottom: 12px; }
+  #status.pass { color: #0a7a0a; } #status.fail { color: #c02626; }
+  table { border-collapse: collapse; width: 100%; background: #fff; }
+  td, th { text-align: left; padding: 4px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+  td.ok { color: #0a7a0a; } td.bad { color: #c02626; font-weight: 700; }
+  td.err { font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap; color: #c02626; }
+  #stage { position: absolute; left: -10000px; top: 0; width: 1000px; }   /* off-screen but laid out */
+  pre#summary { display: none; }
+</style>
+</head>
+<body>
+  <h1>energy-flow-chart · browser tests</h1>
+  <div id="status">Running…</div>
+  <table><thead><tr><th>#</th><th>Test</th><th>Result</th><th>Details</th></tr></thead><tbody id="rows"></tbody></table>
+  <div id="stage"></div>
+  <pre id="summary"></pre>
+  <script type="module" src="./tests.js"></script>
+</body>
+</html>

@@ -94,28 +94,6 @@ export const css = `
 @keyframes efc-pulse { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(3.2); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .efc-now circle.pulse { animation: none; opacity: 0; } }
 
-.efc-tooltip {
-  position: absolute; top: 0; left: 0; pointer-events: none; z-index: 5; min-width: 220px; max-width: 280px;
-  background: var(--efc-tooltip); border: 1px solid var(--efc-border); border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.06);
-  padding: 10px 12px; font-size: 12.5px; opacity: 0; transition: opacity .12s; font-variant-numeric: tabular-nums;
-}
-.efc-tooltip.is-on { opacity: 1; }
-.efc-tt-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; color: var(--efc-ink2); font-weight: 600; }
-.efc-tt-head span:last-child { color: var(--efc-muted); font-weight: 500; }
-.efc-tt-row { display: grid; grid-template-columns: 14px auto 1fr; align-items: center; gap: 8px; padding: 2px 0; }
-.efc-tt-row b { font-weight: 650; color: var(--efc-ink); text-align: right; min-width: 64px; }
-.efc-tt-row span:last-child { color: var(--efc-ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.efc-tt-row.is-zero { opacity: .5; }
-.efc-tt-row.is-hl span:last-child { color: var(--efc-ink); font-weight: 600; }
-.efc-tt-key { width: 14px; height: 0; border-top: 3px solid; border-radius: 2px; }
-.efc-tt-key.is-dash { border-top-style: dashed; border-top-width: 2px; }
-.efc-tt-sum { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--efc-border); display: grid; gap: 3px; }
-.efc-tt-sum div { display: flex; justify-content: space-between; gap: 12px; color: var(--efc-ink2); }
-.efc-tt-sum b { color: var(--efc-ink); font-weight: 650; }
-.efc-tt-sum .pos b { color: var(--efc-good, #0ca30c); }
-.efc-tt-sum .neg b { color: var(--efc-bad, #d03b3b); }
-
 .efc-nav-wrap { position: relative; margin-top: 6px; }
 .efc-nav { touch-action: none; user-select: none; }
 .efc-nav .win { cursor: grab; }
@@ -126,7 +104,6 @@ export const css = `
 
 @media (max-width: 560px) {
   .efc-legend button { font-size: 12px; padding: 3px 7px 3px 5px; gap: 5px; }
-  .efc-tooltip { min-width: 180px; padding: 8px 10px; font-size: 12px; }
 }
 .efc-table { max-height: 320px; overflow: auto; margin-top: 12px; border: 1px solid var(--efc-border); border-radius: 8px; }
 .efc-table[hidden] { display: none; }
