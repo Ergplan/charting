@@ -1,0 +1,52 @@
+{
+  "name": "energy-flow-chart",
+  "version": "1.0.0",
+  "description": "Zero-dependency stacked-area chart with linked KPI cards for time-series energy consumption & generation data",
+  "type": "module",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "types": "types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./react": {
+      "types": "./types/react.d.ts",
+      "default": "./react/index.js"
+    },
+    "./dist/*": "./dist/*"
+  },
+  "files": [
+    "src",
+    "types",
+    "react",
+    "dist",
+    "tools/xlsx-to-json.mjs"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "test": "node --test test/*.test.mjs",
+    "demo": "node tools/serve.mjs",
+    "convert": "node tools/xlsx-to-json.mjs"
+  },
+  "peerDependencies": {
+    "react": ">=17"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "unpkg": "dist/energy-flow-chart.min.js",
+  "jsdelivr": "dist/energy-flow-chart.min.js",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Ergplan/charting.git"
+  }
+}

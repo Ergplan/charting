@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Energy Flow Chart</title>
+<style>
+  :root { --page: #f6f6f3; --panel: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781; --line: rgba(11,11,11,.10); --accent: #b8912f; --accent-ink: #ffffff; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --page: #0f0f0e; --panel: #1a1a19; --ink: #ffffff; --ink2: #c3c2b7; --muted: #8f8d86; --line: rgba(255,255,255,.10); --accent: #d6b35a; --accent-ink: #1a1a19; }
+  }
+  :root[data-theme="dark"] { --page: #0f0f0e; --panel: #1a1a19; --ink: #ffffff; --ink2: #c3c2b7; --muted: #8f8d86; --line: rgba(255,255,255,.10); --accent: #d6b35a; --accent-ink: #1a1a19; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1320px; margin: 0 auto; padding: 28px 24px 60px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  header h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--ink2); }
+  header .live { color: #1b8a3a; font-weight: 600; }
+  header .sample { font-size: 12px; font-weight: 600; color: var(--muted); border: 1px dashed var(--muted); border-radius: 6px; padding: 1px 6px; }
+  header .live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #0ca30c; margin-right: 6px; vertical-align: 1px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg button { all: unset; cursor: pointer; padding: 7px 12px; font-size: 13px; font-weight: 550; color: var(--ink2); }
+  .seg[hidden] { display: none; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .seg button:focus-visible, .btn:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .daypick { display: inline-flex; align-items: center; gap: 6px; }
+  .btn { all: unset; cursor: pointer; padding: 7px 11px; border: 1px solid var(--line); border-radius: 9px; font-size: 13px; font-weight: 550; color: var(--ink2); }
+  .btn:hover, .seg button:hover:not([aria-pressed="true"]) { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  select { font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  label.chk { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--ink2); cursor: pointer; }
+  .spacer { flex: 1; }
+  .dayname { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 112px; text-align: center; font-size: 13px; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 14px; }
+  .panel h2 { font-size: 16px; margin: 0 0 2px; }
+  .panel .sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .hint { color: var(--muted); font-size: 12px; margin: 8px 4px 0; }
+  kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+
+  #cards { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  @media (max-width: 1100px) { #cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { #cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px) {
+    main { padding: 16px 16px 40px; }
+    .spacer { display: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Energy Supply</h1>
+    <p><span class="live">Live data</span> · Demand vs. supply by source, 15-minute blocks (IST) · <span class="sample">Sample prices</span></p>
+  </header>
+
+  <div class="controls" role="toolbar" aria-label="Chart controls">
+    <div class="seg" id="view" aria-label="View">
+      <button type="button" data-v="timeline" aria-pressed="true">Timeline</button>
+      <button type="button" data-v="tod" aria-pressed="false">ToD basis</button>
+    </div>
+    <div class="seg" id="presets">
+      <button type="button" data-p="today" aria-pressed="true">Today</button>
+      <button type="button" data-p="yesterday" aria-pressed="false">Yesterday</button>
+      <button type="button" data-p="48h" aria-pressed="false">48 h</button>
+      <button type="button" data-p="all" aria-pressed="false">7 days</button>
+    </div>
+    <div class="daypick">
+      <button class="btn" id="prev" type="button" aria-label="Previous day">‹</button>
+      <span class="dayname" id="dayname"></span>
+      <button class="btn" id="next" type="button" aria-label="Next day">›</button>
+    </div>
+    <select id="dataset" aria-label="Dataset">
+      <option value="ENERGY_DATA">Export 26 Sep</option>
+      <option value="ENERGY_DATA_0924">Export 24 Sep</option>
+    </select>
+    <span class="spacer"></span>
+    <select id="theme" aria-label="Colour theme"></select>
+    <div class="seg" id="mode">
+      <button type="button" data-m="auto" aria-pressed="true">Auto</button>
+      <button type="button" data-m="light" aria-pressed="false">Light</button>
+      <button type="button" data-m="dark" aria-pressed="false">Dark</button>
+    </div>
+    <div class="seg" id="todscale" hidden>
+      <button type="button" data-s="absolute" aria-pressed="true">kWh</button>
+      <button type="button" data-s="share" aria-pressed="false">Share %</button>
+    </div>
+    <div class="seg" id="curve">
+      <button type="button" data-c="linear" aria-pressed="true">Smooth</button>
+      <button type="button" data-c="step" aria-pressed="false">Blocks</button>
+    </div>
+    <label class="chk"><input type="checkbox" id="tod" /> TOD bands</label>
+    <label class="chk"><input type="checkbox" id="table" /> Table</label>
+    <button class="btn" id="csv" type="button">CSV</button>
+    <button class="btn primary" id="png" type="button">Export PNG</button>
+  </div>
+
+  <section id="cards" aria-label="Key figures for the visible range"></section>
+
+  <section class="panel">
+    <h2 id="title">Energy Supply Chart</h2>
+    <p class="sub" id="subtitle"></p>
+    <div id="chart"></div>
+    <p class="hint" id="hint">Drag across the chart to zoom · drag the window in the strip below to pan · <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+scroll to zoom · double-click for all 7 days · <kbd>←</kbd><kbd>→</kbd> step through blocks</p>
+  </section>
+</main>
+
+<script src="./data.js"></script>
+<script src="./data-0924.js"></script>
+<script type="module">
+  import { mount, themes, format, SAMPLE_PRICES } from '../src/index.js';
+
+  // Everything (columns, series, cards, ToD zones) comes from the 'energy-supply' preset,
+  // which matches the standard export. Prices are ILLUSTRATIVE (see SAMPLE_PRICES).
+  const $ = (id) => document.getElementById(id);
+  const board = await mount('#chart', {
+    data: window.ENERGY_DATA,     // { header, rows } from tools/xlsx-to-json.mjs
+    cards: '#cards',
+    prices: SAMPLE_PRICES,
+    theme: 'energy',
+    height: 440,
+    onRangeChange: (r) => syncControls(r),
+  });
+  const { chart } = board;
+  const todZones = chart.opts.todZones;
+  window.chart = chart; // handy for poking at in devtools
+
+  // ---- controls
+  let days = chart.days();
+  $('dataset').onchange = async (e) => {
+    await board.load(window[e.target.value]);
+    chart.showDay(chart.days().at(-1));
+    days = chart.days();
+    syncControls(chart.store.get().range);
+  };
+  let dayIdx = days.length - 1;
+  const DAY = 86_400_000;
+
+  function setPressed(group, attr, val) {
+    for (const b of $(group).querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset[attr] === val));
+  }
+  function syncControls([t0, t1]) {
+    const span = t1 - t0;
+    const d = Math.floor((t0 + 1) / DAY) * DAY;
+    const i = days.indexOf(d);
+    if (i >= 0) dayIdx = i;
+    $('dayname').textContent = span <= DAY + 1 ? format.fmtDayLong(d + 1) : format.fmtRange(t0, t1).split(' · ')[0];
+    const isDay = Math.abs(span - DAY) < 60_000 && t0 % DAY === 0;
+    setPressed('presets', 'p', isDay && dayIdx === days.length - 1 ? 'today' : isDay && dayIdx === days.length - 2 ? 'yesterday' : span > 6 * DAY ? 'all' : Math.abs(span - 2 * DAY) < 60_000 ? '48h' : '');
+    $('prev').disabled = dayIdx <= 0;
+    $('next').disabled = dayIdx >= days.length - 1;
+  }
+  syncControls(chart.store.get().range);
+
+  $('presets').addEventListener('click', (e) => {
+    const p = e.target.dataset.p;
+    if (!p) return;
+    if (p === 'today') chart.showDay(days[days.length - 1]);
+    if (p === 'yesterday') chart.showDay(days[days.length - 2]);
+    if (p === '48h') chart.showLast(48);
+    if (p === 'all') chart.showAll();
+  });
+  $('prev').onclick = () => chart.showDay(days[Math.max(0, dayIdx - 1)]);
+  $('next').onclick = () => chart.showDay(days[Math.min(days.length - 1, dayIdx + 1)]);
+
+  for (const t of Object.values(themes)) $('theme').add(new Option(t.label, t.name));
+  $('theme').onchange = (e) => chart.setTheme(e.target.value);
+
+  $('mode').addEventListener('click', (e) => {
+    const m = e.target.dataset.m;
+    if (!m) return;
+    if (m === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', m);
+    setPressed('mode', 'm', m);
+    chart.setTheme(chart.opts.theme, m);
+  });
+  $('curve').addEventListener('click', (e) => {
+    const c = e.target.dataset.c;
+    if (!c) return;
+    setPressed('curve', 'c', c);
+    chart.setOptions({ curve: c });
+  });
+  $('tod').onchange = (e) => chart.setOptions({
+    bands: e.target.checked ? todZones.filter((z) => z.kind === 'peak').map((z) => ({ ...z, label: z.name })) : [],
+  });
+
+  const COPY = {
+    timeline: ['Energy Supply Chart', 'Stacked supply by source; dashed line is total demand, hatched area is surplus renewable. Hover to read any 15-min block in the band above the chart.',
+      'Drag across the chart to zoom · drag the window in the strip below to pan · ⌘/Ctrl+scroll to zoom · double-click for all 7 days · ← → step through blocks'],
+    tod: ['Energy by ToD zone', 'Each column spans its ToD hours and is filled by source, so column area is energy (kWh). Height is average power; the dashed marker is average demand.',
+      'Hover a column to see that zone in the band and cards · use the strip below to pick which days are aggregated · ← → step through zones'],
+  };
+  function setView(v) {
+    chart.setView(v);
+    setPressed('view', 'v', v);
+    $('todscale').hidden = v !== 'tod';
+    $('curve').hidden = v === 'tod';
+    $('tod').parentElement.hidden = v === 'tod';
+    [$('title').textContent, $('subtitle').textContent, $('hint').textContent] = COPY[v];
+  }
+  $('view').addEventListener('click', (e) => e.target.dataset.v && setView(e.target.dataset.v));
+  $('todscale').addEventListener('click', (e) => {
+    const sc = e.target.dataset.s;
+    if (!sc) return;
+    setPressed('todscale', 's', sc);
+    chart.setOptions({ todScale: sc });
+  });
+  setView('timeline');
+  $('table').onchange = (e) => chart.setTableVisible(e.target.checked);
+  $('csv').onclick = () => chart.exportCSV();
+  $('png').onclick = () => chart.exportPNG();
+</script>
+</body>
+</html>

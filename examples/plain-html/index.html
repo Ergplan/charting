@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Energy Flow Chart: plain HTML</title>
+  <style>
+    body { margin: 0; padding: 24px; background: #f6f6f3; font-family: system-ui, sans-serif; }
+    .wrap { max-width: 1200px; margin: 0 auto; display: grid; gap: 16px; }
+    .panel { background: #fff; border: 1px solid #0001; border-radius: 14px; padding: 16px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Option A: zero JavaScript</h1>
+    <!-- Cards + chart, configured entirely by data-* attributes -->
+    <div id="cards-a"></div>
+    <div class="panel">
+      <div data-energy-flow data-src="../data/energy-supply-sample.json" data-cards="#cards-a"></div>
+    </div>
+
+    <h1>Option B: one call, with prices and the ToD view</h1>
+    <div id="cards-b"></div>
+    <div class="panel"><div id="chart-b"></div></div>
+    <button id="toggle">Switch view</button>
+  </div>
+
+  <!-- One file, no build. In production pin a version:
+       https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.0.0/dist/energy-flow-chart.min.js -->
+  <script src="../../dist/energy-flow-chart.min.js"></script>
+  <script>
+    EnergyFlow.mount('#chart-b', {
+      url: '../data/energy-supply-sample.json', // or data: rows / CSV text / { header, rows }
+      cards: '#cards-b',
+      view: 'tod',
+      prices: EnergyFlow.SAMPLE_PRICES,         // replace with your tariff / IEX feed
+    }).then(function (board) {
+      document.getElementById('toggle').onclick = function () {
+        board.chart.setView(board.chart.view === 'tod' ? 'timeline' : 'tod');
+      };
+    });
+  </script>
+</body>
+</html>
