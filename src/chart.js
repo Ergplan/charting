@@ -304,8 +304,10 @@ export class EnergyFlowChart {
     // range label + reset, overlaid top-right on the day-label line (no extra row)
     this.topEl = h('div', { class: 'efc-range' }, this.plotEl);
     this.rangeLabel = h('span', {}, this.topEl);
-    this.lockBtn = h('button', { class: 'efc-reset efc-lock', type: 'button', 'aria-pressed': 'false', title: 'Fix the y axis to the highest value in the loaded date range, so days and zooms compare on one scale' }, this.topEl);
-    this.lockBtn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path class="shackle" d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Lock Y</span>'; // static markup
+    // small switch: [ ●— ] Lock Y axis
+    this.lockBtn = h('button', { class: 'efc-lock', type: 'button', role: 'switch', 'aria-checked': 'false', title: 'Fix the y axis to the highest value in the loaded date range, so days and zooms compare on one scale' }, this.topEl);
+    h('span', { class: 'efc-switch', 'aria-hidden': 'true' }, this.lockBtn);
+    h('span', { text: 'Lock Y axis' }, this.lockBtn);
     this.lockBtn.addEventListener('click', () => this.setYLock(!this.opts.yLock));
     this.resetBtn = h('button', { class: 'efc-reset', type: 'button', text: 'Reset zoom', hidden: '' }, this.topEl);
     this.resetBtn.addEventListener('click', () => this.store.set({ range: this._initialRange() }));
@@ -468,8 +470,7 @@ export class EnergyFlowChart {
     this.hit.style.cursor = this.opts.view === 'tod' ? 'pointer' : '';
     const lockable = this.opts.yLockButton && !(this.opts.view === 'tod' && this.opts.todScale === 'share');
     this.lockBtn.hidden = !lockable;
-    this.lockBtn.setAttribute('aria-pressed', String(!!this.opts.yLock));
-    this.lockBtn.querySelector('span').textContent = this.opts.yLock ? 'Y locked' : 'Lock Y';
+    this.lockBtn.setAttribute('aria-checked', String(!!this.opts.yLock));
     Object.entries({ x: m.left - 2, y: m.top - 2, width: pw + 4, height: ph + 4, stroke: this.t.accent }).forEach(([k, v]) => this.focusRing.setAttribute(k, v));
 
     const zoomed = Math.abs(t1 - t0 - (this._initialRange()[1] - this._initialRange()[0])) > MIN || Math.abs(t0 - this._initialRange()[0]) > MIN;

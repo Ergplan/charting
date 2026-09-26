@@ -28,10 +28,18 @@ export const css = `
   padding: 3px 8px; border-radius: 6px; border: 1px solid var(--efc-border);
 }
 .efc-reset:hover { background: var(--efc-band); }
-.efc-lock { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; color: var(--efc-ink2); }
-.efc-lock[aria-pressed="true"] { color: var(--efc-surface); background: var(--efc-accent); border-color: var(--efc-accent); }
-.efc-lock[aria-pressed="false"] .shackle { transform: translateX(4px) translateY(-1px); }
+.efc-lock {
+  all: unset; cursor: pointer; pointer-events: auto; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--efc-ink2); white-space: nowrap; padding: 2px 4px; border-radius: 6px; background: var(--efc-surface);
+}
+.efc-lock[hidden] { display: none; }
+.efc-switch { position: relative; width: 24px; height: 14px; border-radius: 999px; background: var(--efc-axis); transition: background .15s; flex: none; }
+.efc-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
+.efc-lock[aria-checked="true"] .efc-switch { background: var(--efc-accent); }
+.efc-lock[aria-checked="true"] .efc-switch::after { transform: translateX(10px); }
+.efc-lock[aria-checked="true"] { color: var(--efc-ink); }
 .efc-lock:focus-visible, .efc-reset:focus-visible { outline: 2px solid var(--efc-accent); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .efc-switch, .efc-switch::after { transition: none; } }
 .efc-reset[hidden] { display: none; }
 
 /* readout band: legend + live values, sits directly above the plot */

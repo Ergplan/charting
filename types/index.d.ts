@@ -100,7 +100,7 @@ export interface ChartOptions {
   todScale?: 'absolute' | 'share';
   /** Fix the y axis to the highest value in the whole loaded range (trend view). Toggle: setYLock(). */
   yLock?: boolean;
-  /** Show the built-in "Lock Y" toggle (default true). */
+  /** Show the built-in "Lock Y axis" switch (default true). */
   yLockButton?: boolean;
   onYLockChange?: (locked: boolean) => void;
   /** false hides the range text overlaid top-right of the plot. */

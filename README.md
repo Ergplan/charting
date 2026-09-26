@@ -35,7 +35,7 @@ It works on **any website**: plain HTML with one `<script>` tag, React, Next.js,
 <div id="cards"></div>
 <div data-energy-flow data-src="/api/energy.json" data-cards="#cards"></div>
 
-<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.1.0/dist/energy-flow-chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.1.1/dist/energy-flow-chart.min.js"></script>
 ```
 
 That's all. The script finds every `[data-energy-flow]` element and mounts a chart on it.
@@ -82,7 +82,7 @@ ES-module sites can import the single-file module instead:
 ### C. React / Next.js
 
 ```bash
-npm i github:Ergplan/charting#v1.1.0       # package name: energy-flow-chart
+npm i github:Ergplan/charting#v1.1.1       # package name: energy-flow-chart
 ```
 
 ```jsx
@@ -218,7 +218,7 @@ board.chart.setOptions({ todScale: 'share' });   // ToD columns filled to 100 %
 - keyboard: focus the chart, then `←` `→` (Shift = 1 h), `+` `−`, `PageUp` `PageDown`, `Esc`
 - `curve: 'step'` draws each block as a flat step; `bands` shades tariff hours
 
-**Lock Y (trend view)**: toggle it with the **Lock Y** button in the chart's top-right corner, or with `chart.setYLock(true)` / `yLock: true`. The y axis is then fixed to the **highest value anywhere in the loaded date range**, so stepping between days, zooming or switching ranges keeps one scale and trends compare honestly. In ToD it uses the highest single-day zone average. Hidden series are excluded, so the lock tightens when you hide a source. `yLockButton: false` hides the button; `onYLockChange(locked)` reports changes. It doesn't apply to ToD *Share %* (always 0–100 %).
+**Lock Y (trend view)**: toggle it with the small **Lock Y axis** switch in the chart's top-right corner, or with `chart.setYLock(true)` / `yLock: true`. The y axis is then fixed to the **highest value anywhere in the loaded date range**, so stepping between days, zooming or switching ranges keeps one scale and trends compare honestly. In ToD it uses the highest single-day zone average. Hidden series are excluded, so the lock tightens when you hide a source. `yLockButton: false` hides the button; `onYLockChange(locked)` reports changes. It doesn't apply to ToD *Share %* (always 0–100 %).
 
 **ToD**
 - the range selected in the overview strip is what gets aggregated: one day, or all 7
