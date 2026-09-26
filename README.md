@@ -5,7 +5,11 @@ A zero-dependency charting library for **energy consumption and generation time 
 - **Timeline view**: every supply source (renewable, batteries, grid, exchange…) stacked as areas, with demand as a dashed line on top. Surplus renewable is hatched above.
 - **ToD view**: one column per time-of-day tariff zone. Each **column is as wide as its zone's hours** and filled by the sources that met demand. Height is average kW, so **column area = kWh**.
 - **Hover readout band**: a strip above the plot that doubles as the legend. For each source it shows **volume and average purchase price** at the hovered block or zone, plus supply, blended price, cost, surplus/shortfall and RE share.
-- **Linked KPI cards**: they total whatever range is visible and follow the hover. Hover a card to highlight its source; click a card to hide or show it.
+- **Built-in toolbar**: **1 day / 7 days**, a ‹ date › stepper, Timeline / ToD, the **Lock Y axis** switch and **Export PNG**.
+  - **1 day** keeps the window to exactly one calendar day: zoom and free panning are locked, and the overview strip snaps to whole days.
+  - **7 days** allows free zoom and pan.
+- **Pin and share a moment**: the crosshair (or ToD zone) stays where the pointer left the chart. **Export PNG** then saves the chart with the readout band at that moment, and the file is named after the timestamp.
+- **Linked KPI cards**: each card shows the period it covers (e.g. "Sat 26 Sep", "20–26 Sep" or "24 Sep 06:00–16:00"). Cards follow the hover and highlight their source when hovered. They are read-only (not clickable).
 
 It works on **any website**: plain HTML with one `<script>` tag, React, Next.js, Vue, Angular, WordPress… There is nothing to configure if your data uses the standard *Energy Supply Chart* export columns.
 
@@ -35,7 +39,7 @@ It works on **any website**: plain HTML with one `<script>` tag, React, Next.js,
 <div id="cards"></div>
 <div data-energy-flow data-src="/api/energy.json" data-cards="#cards"></div>
 
-<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.1.2/dist/energy-flow-chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.2.0/dist/energy-flow-chart.min.js"></script>
 ```
 
 That's all. The script finds every `[data-energy-flow]` element and mounts a chart on it.
@@ -51,6 +55,8 @@ That's all. The script finds every `[data-energy-flow]` element and mounts a cha
 | `data-height` | chart height in px | `420` |
 | `data-refresh` | re-fetch `data-src` every N seconds (live updates) | off |
 | `data-y-lock` | start with the y axis locked (trend view) | off |
+| `data-range` | `day` (1-day, locked) or `week` (7-day, free zoom) | `day` |
+| `data-toolbar` | `false` hides the built-in toolbar | shown |
 
 You can also self-host the bundle: copy `dist/energy-flow-chart.min.js` into your static assets.
 
@@ -82,7 +88,7 @@ ES-module sites can import the single-file module instead:
 ### C. React / Next.js
 
 ```bash
-npm i github:Ergplan/charting#v1.1.2       # package name: energy-flow-chart
+npm i github:Ergplan/charting#v1.2.0       # package name: energy-flow-chart
 ```
 
 ```jsx
@@ -205,7 +211,35 @@ prices: (ds) => ({ market: rawRows.map((r) => +r['IEX Price (₹/kWh)']) })
 
 ---
 
-## 4. Views: Timeline and ToD
+## 4. Range modes, views, pinning and export
+
+### 1-day and 7-day modes
+
+The toolbar switches between them, or use `rangeMode: 'day' | 'week'` / `chart.setRangeMode()`.
+
+| | **1 day** (`'day'`, default) | **7 days** (`'week'`) |
+|---|---|---|
+| window | exactly one calendar day | last `weekDays` (7) days |
+| zoom (drag, ⌘/Ctrl+scroll, + / −) | locked | free |
+| overview strip | fixed one-day window, snaps to whole days | drag to pan, handles to resize |
+| ‹ › stepper / PageUp / PageDown | previous / next day | previous / next window |
+| cards and toolbar label | "Sat 26 Sep" | "20–26 Sep", or the exact zoomed window, e.g. "24 Sep 06:00–16:00" |
+
+In 1-day mode `setRange()` snaps to the day under the window's centre. `showAll()` and `showLast(>24)` switch to 7-day mode.
+
+### Pin a moment, then export it
+
+Hover a block (or a ToD column). When the pointer leaves the chart, **the crosshair stays** and the band is marked *pinned*. Clear it with the band's **×**, **Esc** or `chart.clearPin()`. Set `stickyHover: false` to clear on leave instead.
+
+**Export PNG** (toolbar, or `await chart.exportPNG()`) rasterises what the viewer sees:
+
+- the **readout band** (time, every source's value and price, supply, average price, balance) drawn above the plot. Turn it off with `exportBand: false`.
+- the plot, with the crosshair and a time label on the axis
+- a file named after the moment: `energy-flow-2026-09-26-1415.png`, or for a ToD zone `energy-tod-2026-09-26-normal-10001900.png`
+
+`chart.exportSVG()` returns the same composed image as an SVG element for custom sharing flows (upload, email, clipboard).
+
+### Views: Timeline and ToD
 
 ```js
 board.chart.setView('tod');         // or 'timeline'
@@ -214,8 +248,8 @@ board.chart.setOptions({ todScale: 'share' });   // ToD columns filled to 100 %
 
 **Timeline**
 - hover → vertical crosshair snapped to the block, values in the band
-- drag across the plot to zoom, drag or resize the overview strip to pan, `⌘/Ctrl`+scroll to zoom, double-click to show everything
-- keyboard: focus the chart, then `←` `→` (Shift = 1 h), `+` `−`, `PageUp` `PageDown`, `Esc`
+- 7-day mode: drag across the plot to zoom, drag or resize the overview strip to pan, `⌘/Ctrl`+scroll to zoom, double-click to show everything
+- keyboard: focus the chart, then `←` `→` (Shift = 1 h), `+` `−` (7-day), `PageUp` `PageDown` (step), `Esc` (clear pin)
 - `curve: 'step'` draws each block as a flat step; `bands` shades tariff hours
 
 **Lock Y (trend view)**: toggle it with the small **Lock Y axis** switch in the chart's top-right corner, or with `chart.setYLock(true)` / `yLock: true`. The y axis is then fixed to the **highest value anywhere in the loaded date range**, so stepping between days, zooming or switching ranges keeps one scale and trends compare honestly. In ToD it uses the highest single-day zone average. Hidden series are excluded, so the lock tightens when you hide a source. `yLockButton: false` hides the button; `onYLockChange(locked)` reports changes. It doesn't apply to ToD *Share %* (always 0–100 %).
@@ -237,6 +271,8 @@ todZones: [
 ---
 
 ## 5. Cards
+
+Cards are **read-only** (hovering one highlights its source in the chart; clicking does nothing). Pass `cardsClickable: true` to make a click hide or show the source. Each card shows the **period** it covers (`cardPeriod: false` hides it; `cardIcons: true` adds icons).
 
 By default you get **5 cards**: Total Demand, Renewable, Grid, Exchange (IEX) and Peak Demand. **Avg Purchase Price** is added when prices are supplied.
 
@@ -314,6 +350,9 @@ Fonts and chrome follow CSS variables on the chart element: `--efc-font`, `--efc
 
 ```js
 const { chart } = board;
+chart.setRangeMode('week');         // '1 day' (locked) | '7 days' (free zoom)
+chart.step(-1);                     // previous day (1-day) / previous window (7-day)
+chart.clearPin();                   // clear the pinned crosshair / zone
 chart.showDay('2026-09-23');        // one calendar day
 chart.showLast(48);                 // last 48 hours
 chart.showAll();                    // everything
@@ -324,7 +363,9 @@ chart.setYLock(true);               // trend view: y axis fixed to the highest v
 chart.setTheme('contrast', 'dark');
 chart.setOptions({ curve: 'step', bands: [...], height: 480 });
 chart.setTableVisible(true);        // accessible data table under the chart
-chart.exportCSV();  chart.exportPNG();
+chart.exportCSV();
+await chart.exportPNG();            // band + plot at the pinned moment; returns the Blob too
+chart.exportSVG();                  // same image as an SVG element
 chart.flush();                      // apply a pending redraw now (redraws are batched per frame)
 await board.load('/api/energy?date=2026-09-25');   // swap data, stays pinned to "now"
 ```
@@ -376,14 +417,19 @@ TypeScript definitions ship in `types/`.
 | `theme`, `mode` | see §6 | `energy`, `auto` |
 | `height` | px | `420` |
 | `curve` | `'linear' \| 'step'` | `linear` |
-| `initialRange` | `'last-day' \| 'all' \| [t0, t1]` | `last-day` |
+| `rangeMode`, `weekDays` | `'day'` (locked) / `'week'` (free), days in week mode | `'day'`, `7` |
+| `toolbar` | `true`, `false`, or `{ range, stepper, view, todScale, lock, export }` | `true` |
+| `stickyHover` | crosshair / zone stays pinned when the pointer leaves | `true` |
+| `exportBand` | PNG export includes the readout band | `true` |
+| `cardsClickable`, `cardPeriod`, `cardIcons` | card behaviour | `false`, `true`, `false` |
+| `initialRange` | `[t0, t1]` to override the mode's default window | none |
 | `live` | `{ series }` pulsing "now" dot, or `false` | preset: demand |
 | `bands` | `[{ start, end, label }]` shaded hours | none |
 | `refreshSeconds` | poll `url` | off |
 | `transform` | `(dataset) => dataset` | none |
 | `unit`, `locale`, `priceFormat`, `minSpanMinutes`, `navigator`, `legend`, `yMax` | misc | `kW`, `en-IN` |
 | `yLock`, `yLockButton` | lock y to the whole-range max / show the toggle | `false`, `true` |
-| `onRangeChange`, `onHover`, `onThemeChange` | callbacks | none |
+| `onRangeChange`, `onRangeModeChange`, `onViewChange`, `onHover`, `onThemeChange`, `onYLockChange` | callbacks | none |
 
 ### Series
 
@@ -515,6 +561,8 @@ After every test the suite also asserts that no `NaN` or `Infinity` appears anyw
 | All values zero | column names don't match. Pass `columns` (see §2) |
 | Days offset by one | your blocks are start-stamped: pass `stamp: 'start'` via a custom adapter (`fromBlockRows(rows, { stamp: 'start', … })`) |
 | ToD column shows "No data yet" | no samples fall in that zone within the selected range (e.g. evening peak, earlier today) |
+| "I can't zoom" | you're in 1-day mode (zoom is locked by design). Switch to 7 days |
+| Exported PNG has no crosshair | hover the moment first (it stays pinned), then export |
 | Card prices show `–` | no `prices` entry for that source, or zero volume |
 | Chart overflows on mobile | put it in a container with a definite width; inside CSS grid use `grid-template-columns: minmax(0, 1fr)` |
 | Wrong colours in dark mode | set `mode`, or set `data-theme` on `<html>`; `auto` follows both |

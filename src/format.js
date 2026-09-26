@@ -64,6 +64,29 @@ export function fmtRange(t0, t1) {
   return `${fmtDay(t0)} ${fmtTime(t0)} – ${fmtDay(t1 - 1)} ${fmtBlockTime(t1)}`;
 }
 
+/**
+ * Compact period label for cards and the toolbar.
+ *   whole day        → "Sat 26 Sep"            (long: "Sat, 26 Sep 2026")
+ *   whole days       → "20–26 Sep"             (long: "20–26 Sep 2026") · across months "28 Sep – 4 Oct"
+ *   partial window   → "24 Sep 06:00–16:00"    · across days "23 Sep 18:00 – 24 Sep 06:00"
+ */
+export function fmtPeriod(t0, t1, { long = false } = {}) {
+  const D = 86_400_000;
+  const d = (t) => new Date(t);
+  const dm = (t) => `${d(t).getUTCDate()} ${MONTHS[d(t).getUTCMonth()]}`;
+  const yr = (t) => (long ? ` ${d(t).getUTCFullYear()}` : '');
+  const whole = t0 % D === 0 && t1 % D === 0;
+  const last = t1 - 1;
+  if (whole && t1 - t0 === D) return long ? `${fmtDayLong(t0)}` : `${DAYS[d(t0).getUTCDay()]} ${dm(t0)}`;
+  if (whole) {
+    return d(t0).getUTCMonth() === d(last).getUTCMonth()
+      ? `${d(t0).getUTCDate()}–${dm(last)}${yr(last)}`
+      : `${dm(t0)} – ${dm(last)}${yr(last)}`;
+  }
+  if (Math.floor(t0 / D) === Math.floor(last / D)) return `${dm(t0)} ${fmtTime(t0)}–${fmtBlockTime(t1)}${yr(t0)}`;
+  return `${dm(t0)} ${fmtTime(t0)} – ${dm(last)} ${fmtBlockTime(t1)}`;
+}
+
 /** "Nice" axis ticks (1-2-5 steps). */
 export function niceTicks(min, max, count = 5) {
   if (max <= min) max = min + 1;

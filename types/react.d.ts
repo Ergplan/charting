@@ -16,6 +16,7 @@ export declare const EnergyDashboard: ForwardRefExoticComponent<EnergyDashboardP
 
 export interface EnergyFlowBoardProps extends Omit<import('./index').MountOptions, 'cards'> {
   view?: 'timeline' | 'tod';
+  rangeMode?: 'day' | 'week';
   showCards?: boolean;
   className?: string;
   cardsClassName?: string;

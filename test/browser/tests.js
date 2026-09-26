@@ -114,7 +114,7 @@ test('mount rejects on HTTP errors and missing targets', async () => {
 test('autoMount reads data-* attributes (view, y-lock, cards-show)', async () => {
   const { wrap } = host();
   const url = URL.createObjectURL(new Blob([JSON.stringify(synth())], { type: 'application/json' }));
-  wrap.innerHTML = `<div id="am-cards"></div><div data-energy-flow data-src="${url}" data-cards="#am-cards" data-view="tod" data-y-lock data-cards-show="demand,grid"></div>`;
+  wrap.innerHTML = `<div id="am-cards"></div><div data-energy-flow data-src="${url}" data-cards="#am-cards" data-view="tod" data-y-lock data-range="week" data-cards-show="demand,grid"></div>`;
   await autoMount(wrap);
   await frames();
   const el = wrap.querySelector('[data-energy-flow]');
@@ -122,6 +122,7 @@ test('autoMount reads data-* attributes (view, y-lock, cards-show)', async () =>
   assert.equal(wrap.querySelectorAll('#am-cards .efc-card').length, 2, 'cards-show picked 2');
   assert.equal(el.querySelectorAll('.efc-todcol').length, 5, 'ToD view');
   assert.equal(el.querySelector('.efc-lock').getAttribute('aria-checked'), 'true', 'y-lock on');
+  assert.equal(el.dataset.efcRange, 'week', 'data-range');
   cleanups.push(() => el.replaceChildren());
 });
 
@@ -194,15 +195,32 @@ test('band RE share = renewable / demand at the block', async () => {
   assert.equal(sumRow(b.chart, 'RE share'), `${want}%`);
 });
 
-test('pointerleave clears hover; cards return to descriptions', async () => {
+test('pointerleave PINS the crosshair; × / Esc / clearPin() clear it', async () => {
   const { chart: el, cards } = host();
   const b = track(await mount(el, { data: synth(), cards }));
   await frames();
   hoverAt(b.chart, 0.4);
-  assert.match(cards.textContent, /@ \d\d:\d\d ·/);
+  const i = b.chart.store.get().hover;
+  b.chart.hit.dispatchEvent(new PointerEvent('pointerleave'));
+  assert.equal(b.chart.store.get().hover, i, 'still pinned after leaving');
+  assert.ok(b.chart.bandEl.classList.contains('is-pinned'));
+  assert.match(b.chart.bandWhen.textContent, /pinned/);
+  assert.equal(b.chart.gCross.querySelectorAll('line').length, 1, 'crosshair stays');
+  assert.match(cards.textContent, /@ \d\d:\d\d ·/, 'cards keep the pinned reading');
+  b.chart.bandWhen.querySelector('.efc-unpin').click();
+  assert.equal(b.chart.store.get().hover, null, '× clears');
+  assert.ok(!/@ \d\d:\d\d ·/.test(cards.textContent));
+  hoverAt(b.chart, 0.4);
+  b.chart.hit.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(b.chart.store.get().hover, null, 'Esc clears');
+});
+
+test('stickyHover:false restores clear-on-leave', async () => {
+  const b = track(await mount(host().chart, { data: synth(), stickyHover: false }));
+  await frames();
+  hoverAt(b.chart, 0.4);
   b.chart.hit.dispatchEvent(new PointerEvent('pointerleave'));
   assert.equal(b.chart.store.get().hover, null);
-  assert.ok(!/@ \d\d:\d\d ·/.test(cards.textContent), 'no instant readings');
 });
 
 test('keyboard: arrows step 1 block, Shift+arrow 4, Home/End', async () => {
@@ -239,9 +257,23 @@ test('cards total the visible range and follow range changes', async () => {
   assert.close(firstCard(), expect(), 0.006, 'all');
 });
 
-test('card hover highlights its series; click hides it (survivor colours unchanged)', async () => {
+test('cards are NOT clickable by default (hover still highlights)', async () => {
   const { chart: el, cards } = host();
   const b = track(await mount(el, { data: synth(), cards }));
+  await frames();
+  const gridCard = [...cards.querySelectorAll('.efc-card')].find((c) => /Grid/.test(c.textContent));
+  assert.equal(gridCard.tagName, 'DIV', 'not a button');
+  assert.ok(!gridCard.hasAttribute('aria-pressed'));
+  gridCard.click();
+  await frames();
+  assert.ok(!b.chart.store.get().hidden.has('grid'), 'click does nothing');
+  gridCard.dispatchEvent(new MouseEvent('mouseenter'));
+  assert.ok(b.chart.chips.grid.b.classList.contains('is-hl'), 'hover highlight kept');
+});
+
+test('cardsClickable:true: click hides the series (survivor colours unchanged)', async () => {
+  const { chart: el, cards } = host();
+  const b = track(await mount(el, { data: synth(), cards, cardsClickable: true }));
   await frames();
   const gridCard = [...cards.querySelectorAll('.efc-card')].find((c) => /Grid/.test(c.textContent));
   const marketColor = b.chart.colorMap.market;
@@ -435,8 +467,8 @@ test('Lock Y switch: role=switch, aria-checked, onYLockChange, yLockButton:false
 });
 
 // ================================================================== range, zoom, navigator
-test('setRange clamps to the minimum span and the data extent', async () => {
-  const b = track(await mount(host().chart, { data: synth() }));
+test('7-day mode: setRange clamps to the minimum span and the data extent', async () => {
+  const b = track(await mount(host().chart, { data: synth(), rangeMode: 'week' }));
   const [a] = b.chart.store.get().range;
   b.chart.setRange(a, a + 60_000);
   const [x0, x1] = b.chart.store.get().range;
@@ -446,8 +478,81 @@ test('setRange clamps to the minimum span and the data extent', async () => {
   assert.ok(y0 >= b.chart.data.t[0] - 15 * 60_000 && y1 <= b.chart.data.t.at(-1) + 86_400_000);
 });
 
-test('drag across the plot zooms; double-click shows all; Reset zoom restores', async () => {
+test('1-day mode: drag, Ctrl+wheel, +/−, double-click do NOT zoom', async () => {
   const b = track(await mount(host().chart, { data: synth() }));
+  await frames();
+  const r0 = b.chart.store.get().range.join();
+  const r = hitRect(b.chart);
+  const ev = (type, f) => b.chart.hit.dispatchEvent(new PointerEvent(type, { clientX: r.left + r.width * f, clientY: r.top + 40, pointerId: 1, pointerType: 'mouse', bubbles: true }));
+  ev('pointerdown', 0.2); ev('pointermove', 0.6); ev('pointerup', 0.6);
+  b.chart.hit.dispatchEvent(new WheelEvent('wheel', { deltaY: -60, ctrlKey: true, clientX: r.left + 200, clientY: r.top + 20, bubbles: true, cancelable: true }));
+  b.chart.hit.dispatchEvent(new KeyboardEvent('keydown', { key: '+', bubbles: true }));
+  b.chart.hit.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+  assert.equal(b.chart.store.get().range.join(), r0, 'unchanged');
+  assert.equal(b.chart.nav.querySelectorAll('.handle').length, 0, 'overview window has no resize handles');
+});
+
+test('1-day mode: setRange / overview drag snap to whole calendar days', async () => {
+  const b = track(await mount(host().chart, { data: synth() }));
+  await frames();
+  const D = 86_400_000;
+  const [d0] = b.chart.store.get().range;
+  b.chart.setRange(d0 - 20 * 3600e3, d0 - 3 * 3600e3); // odd window centred on the previous day
+  const [a, z] = b.chart.store.get().range;
+  assert.equal(z - a, D);
+  assert.equal(a, d0 - D);
+  const win = b.chart.navWin.getBoundingClientRect();
+  const nav = b.chart.nav;
+  const ev = (type, x) => (type === 'pointerdown' ? b.chart.navWin : nav).dispatchEvent(new PointerEvent(type, { clientX: x, clientY: win.top + 5, pointerId: 3, bubbles: true }));
+  ev('pointerdown', win.left + 5); ev('pointermove', win.left + 5 + win.width * 0.8); ev('pointerup', win.left + 5 + win.width * 0.8);
+  assert.equal(b.chart.store.get().range[0], d0, 'dragged ~0.8 day → snapped to the next whole day');
+});
+
+test('toolbar: 1 day ↔ 7 days switches mode; period labels on toolbar and cards follow', async () => {
+  const { chart: el, cards } = host();
+  const b = track(await mount(el, { data: synth(), cards }));
+  await frames();
+  const period = () => cards.querySelector('.efc-card-period').textContent;
+  assert.equal(period(), 'Sat 26 Sep');
+  assert.equal(el.querySelector('.efc-period').textContent, 'Sat, 26 Sep 2026');
+  el.querySelector('.efc-toolbar [data-v="week"]').click();
+  await frames();
+  assert.equal(b.chart.rangeMode, 'week');
+  assert.equal(period(), '24–26 Sep', 'last 7 days clamped to the 3 loaded days');
+  const [a] = b.chart.store.get().range;
+  b.chart.setRange(a + 6 * 3600e3, a + 16 * 3600e3);
+  await frames();
+  assert.equal(period(), '24 Sep 06:00–16:00', 'zoomed window named exactly');
+  el.querySelector('.efc-toolbar [data-v="day"]').click();
+  await frames();
+  assert.equal(period(), 'Thu 24 Sep', 'back to the day that was in view');
+});
+
+test('toolbar: ‹ › step days and disable at the data edges', async () => {
+  const { chart: el } = host();
+  const b = track(await mount(el, { data: synth() }));
+  await frames();
+  const next = el.querySelector('.efc-step[aria-label="Next"]');
+  const prev = el.querySelector('.efc-step[aria-label="Previous"]');
+  assert.ok(next.disabled, 'already on the last day');
+  prev.click(); await frames();
+  prev.click(); await frames();
+  assert.equal(el.querySelector('.efc-period').textContent, 'Thu, 24 Sep 2026');
+  assert.ok(prev.disabled, 'first day');
+  assert.ok(!next.disabled);
+});
+
+test('toolbar options: toolbar:false hides it; {export:false, view:false} hide controls', async () => {
+  const a = track(await mount(host().chart, { data: synth(), toolbar: false }));
+  assert.ok(a.chart.toolbarEl.hidden);
+  const b = track(await mount(host().chart, { data: synth(), toolbar: { export: false, view: false } }));
+  assert.ok(b.chart.exportBtn.hidden);
+  assert.ok(b.chart.tbView.wrap.hidden);
+  assert.ok(!b.chart.tbRange.wrap.hidden, 'others stay');
+});
+
+test('7-day mode: drag across the plot zooms; double-click shows all; Reset zoom restores', async () => {
+  const b = track(await mount(host().chart, { data: synth(), rangeMode: 'week' }));
   await frames();
   const r = hitRect(b.chart);
   assert.ok(b.chart.resetBtn.hidden, 'no reset at initial range');
@@ -455,7 +560,7 @@ test('drag across the plot zooms; double-click shows all; Reset zoom restores', 
   ev('pointerdown', 0.25); ev('pointermove', 0.5); ev('pointerup', 0.5);
   await frames();
   const [a, z] = b.chart.store.get().range;
-  assert.close((z - a) / 3_600_000, 6, 0.3, 'quarter of a day selected');
+  assert.close((z - a) / 3_600_000, 18, 0.5, 'quarter of the 3 days selected');
   assert.ok(!b.chart.resetBtn.hidden, 'reset visible');
   b.chart.hit.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
   assert.ok(b.chart.store.get().range[1] - b.chart.store.get().range[0] > 2 * 86_400_000, 'all days');
@@ -478,22 +583,36 @@ test('Ctrl+wheel zooms in around the pointer; Shift+wheel pans', async () => {
   assert.ok(b.chart.store.get().range[0] < start, 'panned left');
 });
 
-test('navigator: dragging the window pans the range', async () => {
-  const b = track(await mount(host().chart, { data: synth() }));
-  b.chart.showDay(b.chart.days()[0]);
+test('7-day mode: dragging the overview window pans freely', async () => {
+  const b = track(await mount(host().chart, { data: synth(), rangeMode: 'week' }));
+  b.chart.setRange(b.chart.data.t[0], b.chart.data.t[0] + 12 * 3600e3);
   await frames();
   const win = b.chart.navWin.getBoundingClientRect();
   const nav = b.chart.nav;
   const start = b.chart.store.get().range[0];
   const ev = (type, x) => (type === 'pointerdown' ? b.chart.navWin : nav).dispatchEvent(new PointerEvent(type, { clientX: x, clientY: win.top + 5, pointerId: 2, bubbles: true }));
   ev('pointerdown', win.left + win.width / 2); ev('pointermove', win.left + win.width / 2 + 100); ev('pointerup', win.left + win.width / 2 + 100);
-  assert.ok(b.chart.store.get().range[0] > start, 'moved right');
+  const moved = b.chart.store.get().range[0] - start;
+  assert.ok(moved > 0 && moved % 86_400_000 !== 0, 'moved right, not snapped to days');
 });
 
 // ================================================================== data edge cases
-test('load(): new block keeps the window pinned to "now"', async () => {
-  const raw = synth({ lastBlocks: 50 });
+test('1-day mode load(): stays on the day; follows into a new day', async () => {
+  const raw = synth({ lastBlocks: 95 });
   const b = track(await mount(host().chart, { data: raw }));
+  const day = b.chart.store.get().range[0];
+  raw.rows.push(['2026-09-26', 96, '', 1000, 0, 0, 1000, 0, 0, 0]);
+  await b.load({ header: raw.header, rows: raw.rows });
+  assert.equal(b.chart.store.get().range[0], day, 'same day after a new block');
+  raw.rows.push(['2026-09-27', 1, '', 1000, 0, 0, 1000, 0, 0, 0]);
+  await b.load({ header: raw.header, rows: raw.rows.map((r) => [...r]) });
+  assert.equal(b.chart.store.get().range[0], day + 86_400_000, 'moved to the new day');
+});
+
+test('7-day mode load(): new block keeps the window pinned to "now"', async () => {
+  const raw = synth({ lastBlocks: 50 });
+  const b = track(await mount(host().chart, { data: raw, rangeMode: 'week' }));
+  b.chart.setRange(b.chart.data.t.at(-1) - 12 * 3600e3, b.chart.data.t.at(-1));
   const before = b.chart.store.get().range;
   raw.rows.push(['2026-09-26', 51, '', 1000, 0, 0, 1000, 0, 0, 0]);
   await b.load({ header: raw.header, rows: raw.rows });
@@ -570,6 +689,32 @@ test('table view: one row per visible block; ToD table has zones + price columns
   await frames();
   assert.equal(b.chart.tableEl.querySelectorAll('tbody tr').length, 5);
   assert.match(b.chart.tableEl.querySelector('thead').textContent, /Grid \(₹\/kWh\)/);
+});
+
+test('export at a pinned timestamp: band drawn into the image, crosshair + time label, timestamped name', async () => {
+  const b = track(await mount(host().chart, { data: synth(), prices: PRICES }));
+  await frames();
+  const [i0] = b.chart.span;
+  b.chart.store.set({ hover: i0 + 57 - 1 }); // 14:15
+  b.chart.hit.dispatchEvent(new PointerEvent('pointerleave'));
+  const svg = b.chart.exportSVG();
+  const txt = svg.textContent;
+  assert.match(txt, /Sep 26 · 14:15/, 'band header');
+  assert.match(txt, /pinned/);
+  assert.match(txt, /Supply/, 'band summary');
+  assert.match(txt, /@ ₹\d/, 'prices in band');
+  assert.ok(txt.includes(b.chart.chips.grid.val.textContent), 'same values as on screen');
+  assert.ok([...svg.querySelectorAll('text')].some((t) => t.textContent === '14:15'), 'time label on the crosshair');
+  assert.ok(+svg.getAttribute('height') > b.chart.dim.H + 60, 'band stacked above the plot');
+  assert.equal(b.chart._exportName('png'), 'energy-flow-2026-09-26-1415.png');
+  b.chart.setView('tod');
+  await frames();
+  const c = b.chart.todCols[3];
+  b.chart.store.set({ hoverZone: { index: 3, label: c.name, range: c.range, indices: c.indices } });
+  assert.equal(b.chart._exportName('png'), 'energy-tod-2026-09-26-normal-10001900.png');
+  assert.match(b.chart.exportSVG().textContent, /Normal · 10:00–19:00/);
+  const c2 = track(await mount(host().chart, { data: synth(), exportBand: false }));
+  assert.ok(+c2.chart.exportSVG().getAttribute('height') === c2.chart.dim.H, 'exportBand:false → plot only');
 });
 
 test('exportCSV downloads the visible range; exportPNG produces a PNG', async () => {

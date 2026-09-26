@@ -69,14 +69,14 @@ export async function mount(target, options = {}) {
   };
 
   const data = await build(cfg.data ?? cfg.url ?? cfg.rows ?? cfg.csv);
-  const { cards: cardsTarget, metrics, priceMetrics, url, rows, csv, preset: _p, prices: _pr, columns, dateKey, blockKey, timeKey, blockMinutes, time, transform, fetchOptions, refreshSeconds, ...chartOptions } = cfg;
+  const { cards: cardsTarget, metrics, priceMetrics, cardsClickable, cardIcons, cardPeriod, url, rows, csv, preset: _p, prices: _pr, columns, dateKey, blockKey, timeKey, blockMinutes, time, transform, fetchOptions, refreshSeconds, ...chartOptions } = cfg;
   const chart = new EnergyFlowChart(el, { ...chartOptions, data });
 
   let cards = null;
   const cardsEl = resolveEl(cardsTarget);
   if (cardsEl) {
     const all = resolveMetrics(options.metrics, preset, !!data.prices);
-    if (all.length) cards = new EnergyCards(cardsEl, { chart, metrics: all, minWidth: cfg.cardMinWidth });
+    if (all.length) cards = new EnergyCards(cardsEl, { chart, metrics: all, minWidth: cfg.cardMinWidth, clickable: cfg.cardsClickable, icons: cfg.cardIcons, showPeriod: cfg.cardPeriod });
   }
 
   let timer = null;
@@ -110,6 +110,8 @@ export function autoMount(root = document) {
       view: d.view,
       height: d.height ? +d.height : undefined,
       yLock: d.yLock != null ? d.yLock !== 'false' : undefined, // data-y-lock
+      rangeMode: d.range, // data-range="day" | "week"
+      toolbar: d.toolbar === 'false' ? false : undefined,
       refreshSeconds: d.refresh ? +d.refresh : undefined,
     }).catch((e) => { console.error(e); el.textContent = 'Chart failed to load.'; });
   }));

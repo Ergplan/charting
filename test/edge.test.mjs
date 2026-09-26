@@ -197,3 +197,16 @@ test('SAMPLE_PRICES market curve: evening dearer than midday, all positive', () 
   assert.ok(at(19) > at(13));
   for (let h = 0; h < 24; h++) assert.ok(at(h) > 0);
 });
+
+test('fmtPeriod: day, whole days, across months, partial windows', async () => {
+  const { fmtPeriod } = await import('../src/format.js');
+  const D = 86_400_000;
+  assert.equal(fmtPeriod(U(26), U(27)), 'Sat 26 Sep');
+  assert.equal(fmtPeriod(U(26), U(27), { long: true }), 'Sat, 26 Sep 2026');
+  assert.equal(fmtPeriod(U(20), U(27)), '20–26 Sep');
+  assert.equal(fmtPeriod(U(20), U(27), { long: true }), '20–26 Sep 2026');
+  assert.equal(fmtPeriod(U(28), U(28) + 7 * D), '28 Sep – 4 Oct');
+  assert.equal(fmtPeriod(U(24, 6), U(24, 16)), '24 Sep 06:00–16:00');
+  assert.equal(fmtPeriod(U(24, 6), U(25)), '24 Sep 06:00–24:00');
+  assert.equal(fmtPeriod(U(23, 18), U(24, 6)), '23 Sep 18:00 – 24 Sep 06:00');
+});

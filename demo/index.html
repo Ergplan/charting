@@ -58,36 +58,18 @@
     <p><span class="live">Live data</span> · Demand vs. supply by source, 15-minute blocks (IST) · <span class="sample">Sample prices</span></p>
   </header>
 
-  <div class="controls" role="toolbar" aria-label="Chart controls">
-    <div class="seg" id="view" aria-label="View">
-      <button type="button" data-v="timeline" aria-pressed="true">Timeline</button>
-      <button type="button" data-v="tod" aria-pressed="false">ToD basis</button>
-    </div>
-    <div class="seg" id="presets">
-      <button type="button" data-p="today" aria-pressed="true">Today</button>
-      <button type="button" data-p="yesterday" aria-pressed="false">Yesterday</button>
-      <button type="button" data-p="48h" aria-pressed="false">48 h</button>
-      <button type="button" data-p="all" aria-pressed="false">7 days</button>
-    </div>
-    <div class="daypick">
-      <button class="btn" id="prev" type="button" aria-label="Previous day">‹</button>
-      <span class="dayname" id="dayname"></span>
-      <button class="btn" id="next" type="button" aria-label="Next day">›</button>
-    </div>
+  <!-- Page-level demo settings only. Range (1 day / 7 days), day stepper, Timeline/ToD, Lock Y axis
+       and Export PNG are built into the chart's own toolbar. -->
+  <div class="controls" role="toolbar" aria-label="Demo settings">
     <select id="dataset" aria-label="Dataset">
       <option value="ENERGY_DATA">Export 26 Sep</option>
       <option value="ENERGY_DATA_0924">Export 24 Sep</option>
     </select>
-    <span class="spacer"></span>
     <select id="theme" aria-label="Colour theme"></select>
     <div class="seg" id="mode">
       <button type="button" data-m="auto" aria-pressed="true">Auto</button>
       <button type="button" data-m="light" aria-pressed="false">Light</button>
       <button type="button" data-m="dark" aria-pressed="false">Dark</button>
-    </div>
-    <div class="seg" id="todscale" hidden>
-      <button type="button" data-s="absolute" aria-pressed="true">kWh</button>
-      <button type="button" data-s="share" aria-pressed="false">Share %</button>
     </div>
     <div class="seg" id="curve">
       <button type="button" data-c="linear" aria-pressed="true">Smooth</button>
@@ -96,7 +78,6 @@
     <label class="chk"><input type="checkbox" id="tod" /> TOD bands</label>
     <label class="chk"><input type="checkbox" id="table" /> Table</label>
     <button class="btn" id="csv" type="button">CSV</button>
-    <button class="btn primary" id="png" type="button">Export PNG</button>
   </div>
 
   <section id="cards" aria-label="Key figures for the visible range"></section>
@@ -123,49 +104,21 @@
     prices: SAMPLE_PRICES,
     theme: 'energy',
     height: 440,
-    onRangeChange: (r) => syncControls(r),
+    rangeMode: 'day',             // built-in toolbar: 1 day (locked) | 7 days (free zoom)
+    onViewChange: (v) => setCopy(v),
   });
   const { chart } = board;
-  const todZones = chart.opts.todZones;
   window.chart = chart; // handy for poking at in devtools
-
-  // ---- controls
-  let days = chart.days();
-  $('dataset').onchange = async (e) => {
-    await board.load(window[e.target.value]);
-    chart.showDay(chart.days().at(-1));
-    days = chart.days();
-    syncControls(chart.store.get().range);
-  };
-  let dayIdx = days.length - 1;
-  const DAY = 86_400_000;
+  const todZones = chart.opts.todZones;
 
   function setPressed(group, attr, val) {
     for (const b of $(group).querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset[attr] === val));
   }
-  function syncControls([t0, t1]) {
-    const span = t1 - t0;
-    const d = Math.floor((t0 + 1) / DAY) * DAY;
-    const i = days.indexOf(d);
-    if (i >= 0) dayIdx = i;
-    $('dayname').textContent = span <= DAY + 1 ? format.fmtDayLong(d + 1) : format.fmtRange(t0, t1).split(' · ')[0];
-    const isDay = Math.abs(span - DAY) < 60_000 && t0 % DAY === 0;
-    setPressed('presets', 'p', isDay && dayIdx === days.length - 1 ? 'today' : isDay && dayIdx === days.length - 2 ? 'yesterday' : span > 6 * DAY ? 'all' : Math.abs(span - 2 * DAY) < 60_000 ? '48h' : '');
-    $('prev').disabled = dayIdx <= 0;
-    $('next').disabled = dayIdx >= days.length - 1;
-  }
-  syncControls(chart.store.get().range);
 
-  $('presets').addEventListener('click', (e) => {
-    const p = e.target.dataset.p;
-    if (!p) return;
-    if (p === 'today') chart.showDay(days[days.length - 1]);
-    if (p === 'yesterday') chart.showDay(days[days.length - 2]);
-    if (p === '48h') chart.showLast(48);
-    if (p === 'all') chart.showAll();
-  });
-  $('prev').onclick = () => chart.showDay(days[Math.max(0, dayIdx - 1)]);
-  $('next').onclick = () => chart.showDay(days[Math.min(days.length - 1, dayIdx + 1)]);
+  $('dataset').onchange = async (e) => {
+    await board.load(window[e.target.value]);
+    chart.setRangeMode(chart.rangeMode); // re-anchor on the new data's latest day / week
+  };
 
   for (const t of Object.values(themes)) $('theme').add(new Option(t.label, t.name));
   $('theme').onchange = (e) => chart.setTheme(e.target.value);
@@ -187,32 +140,17 @@
   $('tod').onchange = (e) => chart.setOptions({
     bands: e.target.checked ? todZones.filter((z) => z.kind === 'peak').map((z) => ({ ...z, label: z.name })) : [],
   });
-
-  const COPY = {
-    timeline: ['Energy Supply Chart', 'Stacked supply by source; dashed line is total demand, hatched area is surplus renewable. Hover to read any 15-min block in the band above the chart.',
-      'Drag across the chart to zoom · drag the window in the strip below to pan · ⌘/Ctrl+scroll to zoom · double-click for all 7 days · ← → step through blocks'],
-    tod: ['Energy by ToD zone', 'Each column spans its ToD hours and is filled by source, so column area is energy (kWh). Height is average power; the dashed marker is average demand.',
-      'Hover a column to see that zone in the band and cards · use the strip below to pick which days are aggregated · ← → step through zones'],
-  };
-  function setView(v) {
-    chart.setView(v);
-    setPressed('view', 'v', v);
-    $('todscale').hidden = v !== 'tod';
-    $('curve').hidden = v === 'tod';
-    $('tod').parentElement.hidden = v === 'tod';
-    [$('title').textContent, $('subtitle').textContent, $('hint').textContent] = COPY[v];
-  }
-  $('view').addEventListener('click', (e) => e.target.dataset.v && setView(e.target.dataset.v));
-  $('todscale').addEventListener('click', (e) => {
-    const sc = e.target.dataset.s;
-    if (!sc) return;
-    setPressed('todscale', 's', sc);
-    chart.setOptions({ todScale: sc });
-  });
-  setView('timeline');
   $('table').onchange = (e) => chart.setTableVisible(e.target.checked);
   $('csv').onclick = () => chart.exportCSV();
-  $('png').onclick = () => chart.exportPNG();
+
+  const COPY = {
+    timeline: ['Energy Supply Chart', 'Stacked supply by source; dashed line is total demand, hatched area is surplus renewable. Hover to read any block — the line stays pinned when you leave the chart, so Export PNG captures that moment.',
+      '1 day: pick days with ‹ › or the strip below (snaps to whole days) · 7 days: drag across the chart to zoom, drag the strip to pan · Esc clears the pinned time'],
+    tod: ['Energy by ToD zone', 'Each column spans its ToD hours and is filled by source, so column area is energy (kWh). Hover a column for volume and average price per source; it stays pinned for export.',
+      '← → step through zones · Esc clears the pinned zone'],
+  };
+  function setCopy(v) { [$('title').textContent, $('subtitle').textContent, $('hint').textContent] = COPY[v]; }
+  setCopy(chart.view);
 </script>
 </body>
 </html>

@@ -19,25 +19,23 @@
       <div data-energy-flow data-src="../data/energy-supply-sample.json" data-cards="#cards-a"></div>
     </div>
 
-    <h1>Option B: one call, with prices and the ToD view</h1>
+    <h1>Option B: one call, with prices, 7-day mode, ToD view</h1>
+    <!-- 1 day / 7 days, Timeline / ToD, Lock Y axis and Export PNG are in the chart's own toolbar -->
     <div id="cards-b"></div>
     <div class="panel"><div id="chart-b"></div></div>
-    <button id="toggle">Switch view</button>
   </div>
 
   <!-- One file, no build. In production pin a version:
-       https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.1.2/dist/energy-flow-chart.min.js -->
+       https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.2.0/dist/energy-flow-chart.min.js -->
   <script src="../../dist/energy-flow-chart.min.js"></script>
   <script>
     EnergyFlow.mount('#chart-b', {
       url: '../data/energy-supply-sample.json', // or data: rows / CSV text / { header, rows }
       cards: '#cards-b',
       view: 'tod',
+      rangeMode: 'week',
+      metrics: ['demand', 'grid', 'market', 'avgPrice'],
       prices: EnergyFlow.SAMPLE_PRICES,         // replace with your tariff / IEX feed
-    }).then(function (board) {
-      document.getElementById('toggle').onclick = function () {
-        board.chart.setView(board.chart.view === 'tod' ? 'timeline' : 'tod');
-      };
     });
   </script>
 </body>

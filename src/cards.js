@@ -2,13 +2,15 @@
 //
 //  • values aggregate over the chart's visible range (zoom/pan the chart → cards update)
 //  • hovering the chart shows each card's instantaneous reading at the crosshair
-//  • hovering a card highlights its series in the chart; clicking toggles them
+//  • each card names the period it covers ("Sat 26 Sep", "20–26 Sep", "24 Sep 06:00–16:00")
+//  • hovering a card highlights its series in the chart; cards are NOT clickable unless
+//    `clickable: true` (then a click toggles the series)
 //  • each card carries a sparkline of its series with the crosshair position marked
 
 import { createStore } from './store.js';
 import { getTheme, resolveMode, resolveSeriesColors, applyThemeVars } from './themes.js';
 import { aggregator, indexSpan } from './data.js';
-import { fmtEnergy, fmtPower, fmtPercent, fmtNumber, fmtBlockTime, fmtDay, fmtPrice, fmtMoney } from './format.js';
+import { fmtEnergy, fmtPower, fmtPercent, fmtNumber, fmtBlockTime, fmtDay, fmtPrice, fmtMoney, fmtPeriod } from './format.js';
 import { injectStyles } from './styles.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -92,7 +94,7 @@ export class EnergyCards {
     }
     this.cards = this.metrics.map((m) => {
       const keys = this._keys(m);
-      const toggles = m.toggle !== false && keys.length > 0;
+      const toggles = !!this.opts.clickable && m.toggle !== false && keys.length > 0;
       const card = document.createElement(toggles ? 'button' : 'div');
       card.className = `efc-card${toggles ? '' : ' is-static'}`;
       if (toggles) { card.type = 'button'; card.setAttribute('aria-pressed', 'true'); }
@@ -100,7 +102,9 @@ export class EnergyCards {
       const top = el('div', 'efc-card-top', card);
       const label = el('div', 'efc-card-label', top);
       label.textContent = m.label;
-      if (m.icon !== false) {
+      // period this card's number covers: always visible, so a zoomed / scrolled chart never leaves it ambiguous
+      const period = this.opts.showPeriod === false ? null : el('div', 'efc-card-period', top);
+      if (this.opts.icons && m.icon !== false) {
         const ic = el('div', 'efc-card-icon', top);
         const svg = document.createElementNS(SVGNS, 'svg');
         svg.setAttribute('viewBox', '0 0 24 24');
@@ -137,7 +141,7 @@ export class EnergyCards {
         });
       }
       m.onClick && card.addEventListener('click', (e) => m.onClick(e, m));
-      return { m, card, value, sub, spark, keys };
+      return { m, card, value, sub, spark, keys, period };
     });
   }
 
@@ -167,6 +171,11 @@ export class EnergyCards {
       const { m, card, keys } = c;
       const color = m.color || colors[keys[0]] || 'var(--efc-accent)';
       card.style.setProperty('--card-color', color);
+      if (c.period) {
+        const r = this.store.get().range;
+        c.period.textContent = r ? fmtPeriod(r[0], r[1]) : '';
+        c.period.title = r ? `Figures for ${fmtPeriod(r[0], r[1], { long: true })}` : '';
+      }
       if (card.tagName === 'BUTTON') card.setAttribute('aria-pressed', String(!keys.every((k) => hidden.has(k))));
       const v = this._compute(m, agg, keys);
       c.current = v;

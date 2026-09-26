@@ -73,7 +73,7 @@ export const EnergyDashboard = forwardRef(function EnergyDashboard({ metrics, ca
  * `ref` exposes the handle: { chart, cards, store, load(), destroy() }.
  */
 export const EnergyFlowBoard = forwardRef(function EnergyFlowBoard(props, ref) {
-  const { data, view = 'timeline', theme = 'energy', mode = 'auto', showCards = true, cardsClassName, chartClassName, className, style, gap = 14, onReady, ...options } = props;
+  const { data, view = 'timeline', rangeMode = 'day', theme = 'energy', mode = 'auto', showCards = true, cardsClassName, chartClassName, className, style, gap = 14, onReady, ...options } = props;
   const chartEl = useRef(null);
   const cardsEl = useRef(null);
   const [handle, setHandle] = useState(null);
@@ -82,7 +82,7 @@ export const EnergyFlowBoard = forwardRef(function EnergyFlowBoard(props, ref) {
   useEffect(() => {
     let alive = true;
     let h = null;
-    mount(chartEl.current, { ...options, data, view, theme, mode, cards: showCards ? cardsEl.current : null })
+    mount(chartEl.current, { ...options, data, view, rangeMode, theme, mode, cards: showCards ? cardsEl.current : null })
       .then((x) => { if (!alive) { x.destroy(); return; } h = x; setHandle(x); onReady?.(x); })
       .catch((e) => console.error('EnergyFlowBoard:', e));
     return () => { alive = false; h?.destroy(); };
@@ -93,6 +93,7 @@ export const EnergyFlowBoard = forwardRef(function EnergyFlowBoard(props, ref) {
   const first = useRef(true);
   useEffect(() => { if (first.current) { first.current = false; return; } handle?.load(data); }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { handle?.chart.setView(view); }, [handle, view]);
+  useEffect(() => { if (handle && handle.chart.rangeMode !== rangeMode) handle.chart.setRangeMode(rangeMode); }, [handle, rangeMode]);
   useEffect(() => { handle?.chart.setTheme(theme, mode); }, [handle, theme, mode]);
   useEffect(() => { if (options.yLock !== undefined && handle && handle.chart.opts.yLock !== options.yLock) handle.chart.setYLock(options.yLock); }, [handle, options.yLock]); // eslint-disable-line react-hooks/exhaustive-deps
 

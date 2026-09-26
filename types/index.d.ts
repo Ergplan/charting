@@ -88,7 +88,8 @@ export interface ChartOptions {
   yMin?: number;
   yMax?: number | null;
   curve?: 'linear' | 'step';
-  initialRange?: 'last-day' | 'all' | [number, number];
+  /** Override the range mode's default window. */
+  initialRange?: [number, number];
   minSpanMinutes?: number;
   live?: false | { series?: string; color?: string };
   bands?: Band[];
@@ -103,7 +104,19 @@ export interface ChartOptions {
   /** Show the built-in "Lock Y axis" switch (default true). */
   yLockButton?: boolean;
   onYLockChange?: (locked: boolean) => void;
-  /** false hides the range text overlaid top-right of the plot. */
+  /** 'day' (default): one whole calendar day, zoom/pan locked, overview snaps to days.
+   *  'week': last `weekDays` days, free zoom/pan. Toggle: setRangeMode(). */
+  rangeMode?: 'day' | 'week';
+  weekDays?: number;
+  /** Built-in toolbar (range, stepper, view, ToD scale, Lock Y axis, Export PNG). true/false or per control. */
+  toolbar?: boolean | { range?: boolean; stepper?: boolean; view?: boolean; todScale?: boolean; lock?: boolean; export?: boolean };
+  /** Crosshair / zone stays where the pointer left the chart ("pinned"); Esc or × clears. Default true. */
+  stickyHover?: boolean;
+  /** PNG export includes the readout band. Default true. */
+  exportBand?: boolean;
+  onRangeModeChange?: (mode: 'day' | 'week') => void;
+  onViewChange?: (view: 'timeline' | 'tod') => void;
+  /** false hides the period label in the toolbar. */
   rangeLabel?: boolean;
   tooltip?: { render?: (el: HTMLElement, ctx: TooltipContext) => void; summary?: false; hideZero?: boolean; stack?: string; demand?: string };
   locale?: string;
@@ -125,6 +138,14 @@ export declare class EnergyFlowChart {
   setOptions(patch: Partial<ChartOptions>): void;
   setView(view: 'timeline' | 'tod'): void;
   setYLock(on: boolean): void;
+  setRangeMode(mode: 'day' | 'week'): void;
+  readonly rangeMode: 'day' | 'week';
+  /** Step by whole days (day mode) or by the window length (week mode). */
+  step(n: number): void;
+  /** Clear a pinned crosshair / zone. */
+  clearPin(): void;
+  /** Composed SVG (readout band + plot) that exportPNG rasterises. */
+  exportSVG(): SVGSVGElement;
   /** Apply any pending (frame-coalesced) redraw immediately. */
   flush(): void;
   readonly view: 'timeline' | 'tod';
@@ -140,7 +161,8 @@ export declare class EnergyFlowChart {
   aggregate(): Aggregator;
   setTableVisible(on: boolean): void;
   exportCSV(filename?: string): void;
-  exportPNG(filename?: string, scale?: number): Promise<void>;
+  /** PNG of band + plot at the pinned time/zone; default name includes the timestamp. */
+  exportPNG(filename?: string, scale?: number): Promise<Blob>;
   destroy(): void;
 }
 
@@ -182,7 +204,7 @@ export interface Metric {
 }
 
 export declare class EnergyCards {
-  constructor(el: HTMLElement, opts: { chart?: EnergyFlowChart; store?: Store; data?: Dataset; series?: Series[]; theme?: string; mode?: string; metrics: Metric[]; minWidth?: number });
+  constructor(el: HTMLElement, opts: { chart?: EnergyFlowChart; store?: Store; data?: Dataset; series?: Series[]; theme?: string; mode?: string; metrics: Metric[]; minWidth?: number; clickable?: boolean; icons?: boolean; showPeriod?: boolean });
   setMetrics(metrics: Metric[]): void;
   update(): void;
   destroy(): void;
@@ -220,6 +242,12 @@ export interface MountOptions extends Omit<Partial<ChartOptions>, 'data'> {
   refreshSeconds?: number;
   fetchOptions?: RequestInit;
   cardMinWidth?: number;
+  /** Cards toggle their series on click (default false: cards are read-only). */
+  cardsClickable?: boolean;
+  /** Show metric icons on cards (default false; the period chip takes that spot). */
+  cardIcons?: boolean;
+  /** Show the period each card covers (default true). */
+  cardPeriod?: boolean;
 }
 export interface MountHandle { chart: EnergyFlowChart; cards: EnergyCards | null; store: Store; load(input: DataInput): Promise<void>; destroy(): void }
 export declare function mount(target: string | HTMLElement, options?: MountOptions): Promise<MountHandle>;
@@ -268,6 +296,7 @@ export declare const format: {
   fmtDay(t: number): string;
   fmtDayLong(t: number): string;
   fmtRange(t0: number, t1: number): string;
+  fmtPeriod(t0: number, t1: number, opts?: { long?: boolean }): string;
   fmtBlockTime(t: number): string;
   isoDay(t: number): string;
 };

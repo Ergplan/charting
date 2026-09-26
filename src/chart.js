@@ -5,7 +5,7 @@ import { createStore } from './store.js';
 import { getTheme, resolveMode, resolveSeriesColors, applyThemeVars } from './themes.js';
 import { indexSpan, nearestIndex, aggregator, parseClock, time } from './data.js';
 import { renderTod, todColumnAt, computeTod, DEFAULT_TOD_ZONES } from './tod.js';
-import { fmtPrice, fmtMoney, fmtEnergy, fmtNumber, fmtBlockTime, fmtDay, fmtDayLong, fmtRange, fmtWeekday, niceTicks, timeTicks, isoDay } from './format.js';
+import { fmtPeriod, fmtPrice, fmtMoney, fmtEnergy, fmtNumber, fmtBlockTime, fmtDay, fmtDayLong, fmtRange, fmtWeekday, niceTicks, timeTicks, isoDay } from './format.js';
 import { injectStyles } from './styles.js';
 import { toCSV, download, svgToPNG } from './export.js';
 
@@ -43,7 +43,14 @@ const DEFAULTS = {
   yLock: false, // true → y axis fixed to the highest value in the whole loaded range (trend view)
   yLockButton: true, // show the "Lock Y" toggle in the chart
   curve: 'linear', // 'linear' | 'step'
-  initialRange: 'last-day', // 'last-day' | 'all' | [t0, t1]
+  initialRange: null, // [t0, t1] to override the range mode's default window
+  rangeMode: 'day', // 'day': one whole calendar day, zoom/pan locked (overview snaps to days)
+  //                   'week': last `weekDays` days, free zoom + pan
+  weekDays: 7,
+  // built-in toolbar; true / false, or pick controls: { range, stepper, view, todScale, lock, export }
+  toolbar: true,
+  stickyHover: true, // crosshair / zone stays where the pointer left it (pin); Esc or × clears
+  exportBand: true, // PNG export includes the readout band above the plot
   minSpanMinutes: 60,
   live: false, // { series: 'demand' }
   bands: [], // [{ start: '18:00', end: '22:00', label: 'Peak' }]
@@ -113,7 +120,11 @@ export class EnergyFlowChart {
     this.data = data;
     if (!!old?.prices !== !!data.prices) this._buildLegend();
     if (!keepRange || !t0) this.store.set({ range: this._initialRange() });
-    else if (wasAtEnd && data.t.length) {
+    else if (this.opts.rangeMode === 'day') {
+      const oldLast = Math.floor((old.t[old.t.length - 1] - 1) / DAY);
+      const newLast = Math.floor((data.t[data.t.length - 1] - 1) / DAY);
+      if (wasAtEnd && newLast > oldLast) this.showDay(newLast * DAY); // follow into the new day
+    } else if (wasAtEnd && data.t.length) {
       const end = data.t[data.t.length - 1];
       const shift = end - old.t[old.t.length - 1];
       this.store.set({ range: [t0 + shift, t1 + shift] });
@@ -142,6 +153,30 @@ export class EnergyFlowChart {
     this.store.set({ themeRev: (this.store.get().themeRev || 0) + 1 });
     this.opts.onThemeChange?.(this.theme, this.modeResolved);
   }
+
+  /** 'day' (locked to one calendar day) or 'week' (last N days, free zoom/pan). */
+  setRangeMode(mode) {
+    if (mode !== 'day' && mode !== 'week') throw new Error(`setRangeMode: 'day' | 'week', got ${mode}`);
+    const prev = this.opts.rangeMode;
+    this.opts.rangeMode = mode;
+    if (mode === 'day') {
+      // keep context: the day of the pinned block, else the last day in view
+      const st = this.store.get();
+      const t = st.hover != null ? this.data.t[st.hover] - 1 : st.range[1] - 1;
+      this.showDay(Math.min(t, this._extent()[1] - 1));
+    } else if (prev !== mode) this.store.set({ range: this._initialRange() });
+    this.render();
+    this.opts.onRangeModeChange?.(mode);
+  }
+  get rangeMode() { return this.opts.rangeMode; }
+  /** Step the window by whole days (day mode) or by its own length (week mode). */
+  step(n) {
+    const [t0, t1] = this.store.get().range;
+    const d = this.opts.rangeMode === 'day' ? DAY : t1 - t0;
+    this.setRange(t0 + n * d, t1 + n * d);
+  }
+  /** Clear a pinned crosshair / zone. */
+  clearPin() { this.store.set({ hover: null, hoverZone: null }); }
 
   /** Lock the y axis to the highest value across the whole loaded range (trend view). */
   setYLock(on) {
@@ -201,6 +236,7 @@ export class EnergyFlowChart {
     this.store.set({ hover: null, hoverZone: null });
     this.el.dataset.efcView = view;
     this.render();
+    this.opts.onViewChange?.(view);
   }
   get view() { return this.opts.view; }
 
@@ -220,10 +256,15 @@ export class EnergyFlowChart {
     this.setRange(d0, d0 + DAY);
   }
   showLast(hours) {
+    if (hours > 24 && this.opts.rangeMode === 'day') this.opts.rangeMode = 'week';
     const end = this._extent()[1];
     this.setRange(end - hours * 3_600_000, end);
   }
-  showAll() { this.setRange(...this._extent()); }
+  /** Whole loaded range (switches to week mode, since a day can't show it). */
+  showAll() {
+    if (this.opts.rangeMode === 'day') { this.opts.rangeMode = 'week'; this.opts.onRangeModeChange?.('week'); }
+    this.setRange(...this._extent());
+  }
   /** Distinct days present in the data (UTC-midnight epochs). */
   days() {
     const set = new Set(this.data.t.map((t) => Math.floor((t - 1) / DAY) * DAY));
@@ -243,10 +284,104 @@ export class EnergyFlowChart {
     const csv = toCSV(this.data, this.series, i0, i1, this.opts.unit);
     download(new Blob([csv], { type: 'text/csv' }), filename || `energy-flow-${isoDay(this.store.get().range[0] + 1)}.csv`);
   }
+  /**
+   * PNG of what the viewer sees: the readout band (values at the pinned block / zone)
+   * above the plot, crosshair included. Named after the pinned timestamp when there is one.
+   */
   async exportPNG(filename, scale = 2) {
     this.flush();
-    const blob = await svgToPNG(this.svg, this.t.surface, scale);
-    download(blob, filename || `energy-flow-${isoDay(this.store.get().range[0] + 1)}.png`);
+    const blob = await svgToPNG(this.exportSVG(), this.t.surface, scale);
+    download(blob, filename || this._exportName('png'));
+    return blob;
+  }
+
+  /** Composed SVG (band + plot) used by exportPNG; handy for custom sharing flows. */
+  exportSVG() {
+    this.flush();
+    const W = this.dim.W;
+    const out = s('svg', { xmlns: SVGNS, 'font-family': 'system-ui, -apple-system, Segoe UI, sans-serif' });
+    let y = 0;
+    if (this.opts.exportBand && this.bandEl) {
+      const band = this._bandSVG(W);
+      out.appendChild(band.g);
+      y = band.height + 8;
+    }
+    const plot = this.svg.cloneNode(true);
+    const g = s('g', { transform: `translate(0 ${y})` }, out);
+    for (const child of [...plot.childNodes]) g.appendChild(child);
+    const H = y + this.dim.H;
+    out.setAttribute('width', W);
+    out.setAttribute('height', H);
+    out.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    return out;
+  }
+
+  _exportName(ext) {
+    const st = this.store.get();
+    const [t0, t1] = st.range;
+    if (this.opts.view === 'tod') {
+      const z = st.hoverZone ? this.todCols?.[st.hoverZone.index] : null;
+      const period = `${isoDay(t0 + 1)}${t1 - t0 > DAY ? `_to_${isoDay(t1 - 1)}` : ''}`;
+      return `energy-tod-${period}${z ? `-${z.name.toLowerCase().replace(/[^a-z0-9]+/g, '')}-${z.range.replace(/[^0-9]+/g, '')}` : ''}.${ext}`;
+    }
+    if (st.hover != null) { const t = this.data.t[st.hover]; return `energy-flow-${isoDay(t - 1)}-${fmtBlockTime(t).replace(':', '')}.${ext}`; }
+    return `energy-flow-${isoDay(t0 + 1)}${t1 - t0 > DAY ? `_to_${isoDay(t1 - 1)}` : ''}.${ext}`;
+  }
+
+  /** Draw the readout band as SVG (same text as on screen) for export. */
+  _bandSVG(W) {
+    const ctx = (this._measure ||= document.createElement('canvas').getContext('2d'));
+    const font = (wgt, px) => `${wgt} ${px}px system-ui, -apple-system, Segoe UI, sans-serif`;
+    const width = (txt, wgt, px) => { ctx.font = font(wgt, px); return ctx.measureText(txt).width; };
+    const t = this.t;
+    const g = s('g', {});
+    const pad = 12;
+    const text = (x, yy, txt, { size = 12, weight = 400, fill = t.ink } = {}) => {
+      s('text', { x, y: yy, 'font-size': size, 'font-weight': weight, fill, style: 'font-variant-numeric: tabular-nums' }, g).textContent = txt;
+    };
+    // header: when + sub
+    const whenMain = this.bandWhen.querySelector('b')?.textContent || '';
+    const whenSub = this.bandWhen.querySelector('span')?.textContent || '';
+    let y = pad + 13;
+    text(pad, y, whenMain, { size: 13.5, weight: 700 });
+    if (whenSub) text(pad + width(whenMain, 700, 13.5) + 10, y, whenSub, { size: 12, fill: t.muted });
+    // chips (visible series only), flowing with wrap
+    const hidden = this.store.get().hidden;
+    const priced = !!this.data?.prices;
+    const chipH = priced ? 46 : 32;
+    let x = pad;
+    y += 10;
+    for (const [k, c] of Object.entries(this.chips || {})) {
+      if (hidden.has(k)) continue;
+      const label = c.b.querySelector('.efc-chip-label').textContent;
+      const val = c.val.textContent;
+      const price = c.price?.textContent?.trim() || '';
+      const w = 20 + Math.max(width(label, 400, 11.5), width(val, 700, 13), price ? width(price, 400, 11) : 0) + 16;
+      if (x + w > W - pad) { x = pad; y += chipH + 4; }
+      const ser = this.series.find((q) => q.key === k);
+      if (ser?.type === 'line') s('line', { x1: x, x2: x + 12, y1: y + 12, y2: y + 12, stroke: this.colorMap[k], 'stroke-width': 2, 'stroke-dasharray': ser.dash ? '3 2' : null }, g);
+      else s('rect', { x, y: y + 6, width: 12, height: 12, rx: 3, fill: ser?.pattern === 'hatch' ? `url(#efc-hatch-${this._uid}-${k})` : this.colorMap[k] }, g);
+      text(x + 18, y + 16, label, { size: 11.5, fill: t.ink2 });
+      text(x + 18, y + 31, val, { size: 13, weight: 700 });
+      if (price) text(x + 18, y + 44, price, { size: 11, fill: t.muted });
+      x += w;
+    }
+    y += chipH + 10;
+    // summary line
+    x = pad;
+    for (const row of this.bandSum.children) {
+      const label = row.firstChild?.textContent || '';
+      const val = row.lastChild?.textContent || '';
+      const w = width(label, 400, 11.5) + 6 + width(val, 700, 13) + 22;
+      if (x + w > W - pad) { x = pad; y += 20; }
+      text(x, y + 4, label, { size: 11.5, fill: t.muted });
+      const tone = row.classList.contains('pos') ? '#0a8a0a' : row.classList.contains('neg') ? '#d03b3b' : t.ink;
+      text(x + width(label, 400, 11.5) + 6, y + 4, val, { size: 13, weight: 700, fill: tone });
+      x += w;
+    }
+    const height = y + pad;
+    g.insertBefore(s('rect', { x: 0.5, y: 0.5, width: W - 1, height: height - 1, rx: 10, fill: t.surface, stroke: t.axis }, g), g.firstChild);
+    return { g, height };
   }
 
   destroy() {
@@ -268,11 +403,11 @@ export class EnergyFlowChart {
 
   _initialRange() {
     const r = this.opts.initialRange;
-    const [a, b] = this._extent();
+    const [, b] = this._extent();
     if (Array.isArray(r)) return this._clampRange(r[0], r[1]);
-    if (r === 'all') return [a, b];
-    // last-day: the calendar day containing the latest sample
-    const lastDay = Math.floor((b - 1) / DAY) * DAY;
+    if (r === 'all') return this._clampRange(...this._extent()); // legacy value
+    const lastDay = Math.floor((b - 1) / DAY) * DAY; // the calendar day holding the latest sample
+    if (this.opts.rangeMode === 'week') return this._clampRange(lastDay + DAY - this.opts.weekDays * DAY, lastDay + DAY);
     return this._clampRange(lastDay, lastDay + DAY);
   }
 
@@ -281,6 +416,13 @@ export class EnergyFlowChart {
     // Allow the right edge to extend to the end of the current day, so "today"
     // shows the remaining blocks as empty space rather than stretching.
     const bMax = Math.max(b, Math.ceil(b / DAY) * DAY);
+    if (this.opts.rangeMode === 'day') {
+      // day mode: always exactly one whole calendar day, the one under the window's centre
+      const first = Math.floor(a / DAY) * DAY + (a % DAY > DAY - this.data.stepMinutes * MIN ? DAY : 0);
+      const lastDay = bMax - DAY;
+      const d = clamp(Math.floor((t0 + t1) / 2 / DAY) * DAY, first, lastDay);
+      return [d, d + DAY];
+    }
     const minSpan = this.opts.minSpanMinutes * MIN;
     let span = Math.max(minSpan, t1 - t0);
     span = Math.min(span, bMax - a);
@@ -296,6 +438,47 @@ export class EnergyFlowChart {
     el.replaceChildren();
 
 
+    // Toolbar: [1 day | 7 days] ‹ period ›  ·  [Timeline | ToD] [kWh | %]  (●) Lock Y axis  Reset zoom  Export PNG
+    const tb = this.opts.toolbar;
+    const want = (k) => tb === true || (tb && tb[k] !== false && (tb[k] || tb[k] === undefined));
+    this.toolbarEl = h('div', { class: 'efc-toolbar', role: 'toolbar', 'aria-label': 'Chart controls' }, el);
+    if (!tb) this.toolbarEl.hidden = true;
+    const seg = (items, onPick, label) => {
+      const wrap = h('div', { class: 'efc-seg', role: 'group', 'aria-label': label }, this.toolbarEl);
+      const btns = items.map(([val, txt]) => {
+        const b = h('button', { type: 'button', 'data-v': val, 'aria-pressed': 'false', text: txt }, wrap);
+        b.addEventListener('click', () => onPick(val));
+        return b;
+      });
+      return { wrap, set: (v) => btns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v))) };
+    };
+    this.tbRange = seg([['day', '1 day'], ['week', `${this.opts.weekDays} days`]], (v) => this.setRangeMode(v), 'Range');
+    if (!want('range')) this.tbRange.wrap.hidden = true;
+    this.topEl = h('div', { class: 'efc-range' }, this.toolbarEl);
+    this.prevBtn = h('button', { class: 'efc-step', type: 'button', 'aria-label': 'Previous', text: '‹' }, this.topEl);
+    this.rangeLabel = h('span', { class: 'efc-period', 'aria-live': 'polite' }, this.topEl);
+    this.nextBtn = h('button', { class: 'efc-step', type: 'button', 'aria-label': 'Next', text: '›' }, this.topEl);
+    this.prevBtn.addEventListener('click', () => this.step(-1));
+    this.nextBtn.addEventListener('click', () => this.step(1));
+    if (!want('stepper')) { this.prevBtn.hidden = true; this.nextBtn.hidden = true; }
+    h('span', { class: 'efc-tb-spacer' }, this.toolbarEl);
+    this.tbView = seg([['timeline', 'Timeline'], ['tod', 'ToD']], (v) => this.setView(v), 'View');
+    if (!want('view')) this.tbView.wrap.hidden = true;
+    this.tbScale = seg([['absolute', 'kWh'], ['share', 'Share %']], (v) => this.setOptions({ todScale: v }), 'ToD scale');
+    this._wantScale = want('todScale');
+    // small switch: [ ●— ] Lock Y axis
+    this.lockBtn = h('button', { class: 'efc-lock', type: 'button', role: 'switch', 'aria-checked': 'false', title: 'Fix the y axis to the highest value in the loaded date range, so days and zooms compare on one scale' }, this.toolbarEl);
+    h('span', { class: 'efc-switch', 'aria-hidden': 'true' }, this.lockBtn);
+    h('span', { text: 'Lock Y axis' }, this.lockBtn);
+    this.lockBtn.addEventListener('click', () => this.setYLock(!this.opts.yLock));
+    this._wantLock = want('lock');
+    this.resetBtn = h('button', { class: 'efc-reset', type: 'button', text: 'Reset zoom', hidden: '' }, this.toolbarEl);
+    this.resetBtn.addEventListener('click', () => this.store.set({ range: this._initialRange() }));
+    this.exportBtn = h('button', { class: 'efc-export', type: 'button', title: 'Download a PNG of the chart with the readout band (pin a time first by hovering it)' }, this.toolbarEl);
+    this.exportBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span>Export PNG</span>'; // static markup
+    this.exportBtn.addEventListener('click', () => this.exportPNG());
+    if (!want('export')) this.exportBtn.hidden = true;
+
     // Readout band: doubles as the legend. Shows values at the hovered block / zone.
     this.bandEl = h('div', { class: 'efc-band' }, el);
     this.bandWhen = h('div', { class: 'efc-band-when' }, this.bandEl);
@@ -303,16 +486,6 @@ export class EnergyFlowChart {
     this.bandSum = h('div', { class: 'efc-band-sum' }, this.bandEl);
 
     this.plotEl = h('div', { class: 'efc-plot' }, el);
-    // range label + reset, overlaid top-right on the day-label line (no extra row)
-    this.topEl = h('div', { class: 'efc-range' }, this.plotEl);
-    this.rangeLabel = h('span', {}, this.topEl);
-    // small switch: [ ●— ] Lock Y axis
-    this.lockBtn = h('button', { class: 'efc-lock', type: 'button', role: 'switch', 'aria-checked': 'false', title: 'Fix the y axis to the highest value in the loaded date range, so days and zooms compare on one scale' }, this.topEl);
-    h('span', { class: 'efc-switch', 'aria-hidden': 'true' }, this.lockBtn);
-    h('span', { text: 'Lock Y axis' }, this.lockBtn);
-    this.lockBtn.addEventListener('click', () => this.setYLock(!this.opts.yLock));
-    this.resetBtn = h('button', { class: 'efc-reset', type: 'button', text: 'Reset zoom', hidden: '' }, this.topEl);
-    this.resetBtn.addEventListener('click', () => this.store.set({ range: this._initialRange() }));
     this.svg = s('svg', { role: 'img', 'font-family': 'system-ui, -apple-system, Segoe UI, sans-serif' }, this.plotEl);
     this.srEl = h('div', { class: 'efc-sr', 'aria-live': 'polite' }, this.plotEl);
 
@@ -461,8 +634,6 @@ export class EnergyFlowChart {
     this.y = y;
     this.j0 = j0;
 
-    this.rangeLabel.textContent = this.opts.rangeLabel === false ? '' : fmtRange(t0, t1);
-    this.topEl.style.right = `${m.right}px`;
     this._renderDefs();
     this._renderBands(t0, t1);
     this._renderGrid(yt.ticks.filter((v) => v <= yMax));
@@ -482,15 +653,23 @@ export class EnergyFlowChart {
     this.hit.setAttribute('width', pw);
     this.hit.setAttribute('height', ph);
     this.hit.style.cursor = this.opts.view === 'tod' ? 'pointer' : '';
-    const lockable = this.opts.yLockButton && !(this.opts.view === 'tod' && this.opts.todScale === 'share');
+    const lockable = this._wantLock && this.opts.yLockButton && !(this.opts.view === 'tod' && this.opts.todScale === 'share');
     this.lockBtn.hidden = !lockable;
     this.lockBtn.setAttribute('aria-checked', String(!!this.opts.yLock));
+    this.tbRange.set(this.opts.rangeMode);
+    this.tbView.set(this.opts.view);
+    this.tbScale.set(this.opts.todScale);
+    this.tbScale.wrap.hidden = !(this._wantScale && this.opts.view === 'tod');
+    const [ea, eb] = this._extent();
+    this.prevBtn.disabled = t0 <= ea + this.data.stepMinutes * MIN;
+    this.nextBtn.disabled = t1 >= eb;
+    this.el.dataset.efcRange = this.opts.rangeMode;
     Object.entries({ x: m.left - 2, y: m.top - 2, width: pw + 4, height: ph + 4, stroke: this.t.accent }).forEach(([k, v]) => this.focusRing.setAttribute(k, v));
 
-    const zoomed = Math.abs(t1 - t0 - (this._initialRange()[1] - this._initialRange()[0])) > MIN || Math.abs(t0 - this._initialRange()[0]) > MIN;
+    const init = this._initialRange();
+    const zoomed = this.opts.rangeMode === 'week' && (Math.abs(t1 - t0 - (init[1] - init[0])) > MIN || Math.abs(t0 - init[0]) > MIN);
     this.resetBtn.hidden = !zoomed;
-    this.rangeLabel.textContent = this.opts.rangeLabel === false ? '' : fmtRange(t0, t1);
-    this.topEl.style.right = `${m.right}px`;
+    this.rangeLabel.textContent = this.opts.rangeLabel === false ? '' : fmtPeriod(t0, t1, { long: true });
     this.svg.setAttribute('aria-label', (this.opts.view === 'tod' ? 'Time-of-day columns. ' : '') + this._summary());
 
     this._applyHighlight();
@@ -556,7 +735,7 @@ export class EnergyFlowChart {
     if (!this.opts.dayMarkers) return;
     const { m, pw, ph } = this.dim;
     const pxPerDay = (DAY / (t1 - t0)) * pw;
-    const reserve = (this.topEl.offsetWidth || 0) + 12; // keep day labels clear of the range overlay
+    const reserve = 0;
     const first = Math.floor(t0 / DAY) * DAY;
     for (let d = first; d < t1; d += DAY) {
       const xd = this.x(d);
@@ -701,6 +880,12 @@ export class EnergyFlowChart {
       const { m, ph } = this.dim;
       const xx = Math.round(this.x(t)) + 0.5;
       s('line', { x1: xx, x2: xx, y1: m.top, y2: m.top + ph, stroke: this.t.ink2, 'stroke-width': 1, 'stroke-opacity': 0.55 }, this.gCross);
+      // time pill at the foot of the crosshair, over the axis labels
+      const label = fmtBlockTime(t);
+      const pw2 = 42;
+      const px = clamp(xx - pw2 / 2, m.left, m.left + this.dim.pw - pw2);
+      s('rect', { x: px, y: m.top + ph + 5, width: pw2, height: 18, rx: 5, fill: this.t.ink }, this.gCross);
+      s('text', { x: px + pw2 / 2, y: m.top + ph + 18, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700, fill: this.t.surface, style: 'font-variant-numeric: tabular-nums' }, this.gCross).textContent = label;
       // dots on every visible series (≥8px with a 2px surface ring)
       for (const L of this.layers) {
         const v = this.data.values[L.ser.key]?.[i] || 0;
@@ -761,9 +946,15 @@ export class EnergyFlowChart {
       live = hov;
     }
     this.bandEl.classList.toggle('is-live', live);
+    const pinned = live && this.opts.stickyHover && !this._pointerInside;
+    this.bandEl.classList.toggle('is-pinned', pinned);
     this.bandWhen.replaceChildren();
     h('b', { text: whenMain }, this.bandWhen);
-    h('span', { text: whenSub }, this.bandWhen);
+    h('span', { text: pinned ? `${whenSub ? `${whenSub} · ` : ''}pinned` : whenSub }, this.bandWhen);
+    if (live && this.opts.stickyHover) {
+      const x = h('button', { class: 'efc-unpin', type: 'button', 'aria-label': 'Clear pinned time', title: 'Clear (Esc)', text: '×' }, this.bandWhen);
+      x.addEventListener('click', () => this.clearPin());
+    }
 
     const hidden = st.hidden;
     for (const [k, c] of Object.entries(this.chips || {})) {
@@ -840,7 +1031,9 @@ export class EnergyFlowChart {
       const c = zi == null ? null : this.todCols[zi];
       this.store.set({ hoverZone: c ? { index: zi, label: c.name, range: c.range, indices: c.indices } : null });
     };
+    hit.addEventListener('pointerenter', () => { this._pointerInside = true; });
     hit.addEventListener('pointermove', (e) => {
+      this._pointerInside = true;
       const [px] = pos(e);
       if (this.opts.view === 'tod') { zoneAt(px); return; }
       hoverAt(px);
@@ -850,7 +1043,7 @@ export class EnergyFlowChart {
       }
     });
     hit.addEventListener('pointerdown', (e) => {
-      if (e.pointerType === 'touch' || this.opts.view === 'tod') return; // touch: tap = hover
+      if (e.pointerType === 'touch' || this.opts.view === 'tod' || this.opts.rangeMode === 'day') return; // day: no zoom
       const [px] = pos(e);
       drag = { x0: px, x1: px };
       try { hit.setPointerCapture(e.pointerId); } catch { /* pen/synthetic pointers may refuse capture */ }
@@ -869,10 +1062,16 @@ export class EnergyFlowChart {
     };
     hit.addEventListener('pointerup', end);
     hit.addEventListener('pointercancel', end);
-    hit.addEventListener('pointerleave', () => { if (!drag) this.store.set({ hover: null, hoverZone: null }); });
-    hit.addEventListener('dblclick', () => { if (this.opts.view !== 'tod') this.showAll(); });
+    hit.addEventListener('pointerleave', () => {
+      this._pointerInside = false;
+      if (drag) return;
+      if (this.opts.stickyHover) this._fillBand(); // keep the crosshair where it is (pinned) → export / share it
+      else this.clearPin();
+    });
+    hit.addEventListener('dblclick', () => { if (this.opts.view !== 'tod' && this.opts.rangeMode === 'week') this.showAll(); });
 
     hit.addEventListener('wheel', (e) => {
+      if (this.opts.rangeMode === 'day') return; // locked: let the page scroll
       const [t0, t1] = this.store.get().range;
       const span = t1 - t0;
       if (e.ctrlKey || e.metaKey) {
@@ -915,12 +1114,12 @@ export class EnergyFlowChart {
         ArrowLeft: () => this.store.set({ hover: clamp(i - (e.shiftKey ? 4 : 1), i0, i1) }),
         Home: () => this.store.set({ hover: i0 }),
         End: () => this.store.set({ hover: i1 }),
-        '+': () => this.setRange(t0 + span / 4, t1 - span / 4),
-        '=': () => this.setRange(t0 + span / 4, t1 - span / 4),
-        '-': () => this.setRange(t0 - span / 2, t1 + span / 2),
-        Escape: () => this.store.set({ hover: null }),
-        PageUp: () => this.setRange(t0 - span, t1 - span),
-        PageDown: () => this.setRange(t0 + span, t1 + span),
+        '+': () => this.opts.rangeMode === 'week' && this.setRange(t0 + span / 4, t1 - span / 4),
+        '=': () => this.opts.rangeMode === 'week' && this.setRange(t0 + span / 4, t1 - span / 4),
+        '-': () => this.opts.rangeMode === 'week' && this.setRange(t0 - span / 2, t1 + span / 2),
+        Escape: () => this.clearPin(),
+        PageUp: () => this.step(-1),
+        PageDown: () => this.step(1),
       };
       if (keys[e.key]) {
         e.preventDefault();
@@ -930,7 +1129,7 @@ export class EnergyFlowChart {
       }
     });
     hit.addEventListener('focus', () => { if (this.opts.view !== 'tod' && this.store.get().hover == null && this.span[1] >= this.span[0]) this.store.set({ hover: this.span[1] }); });
-    hit.addEventListener('blur', () => this.store.set({ hover: null, hoverZone: null }));
+    hit.addEventListener('blur', () => { if (!this.opts.stickyHover) this.clearPin(); });
   }
 
   _describeIndex(i) {
@@ -1003,7 +1202,7 @@ export class EnergyFlowChart {
     s('rect', { x: m.left, y: 0, width: Math.max(0, x0 - m.left), height: NH, fill: this.t.surface, 'fill-opacity': 0.65 }, nav);
     s('rect', { x: x1, y: 0, width: Math.max(0, m.left + pw - x1), height: NH, fill: this.t.surface, 'fill-opacity': 0.65 }, nav);
     this.navWin = s('rect', { class: 'win', x: x0, y: 1, width: Math.max(2, x1 - x0), height: NH - 2, rx: 4, fill: this.t.accent, 'fill-opacity': 0.08, stroke: this.t.accent, 'stroke-width': 1.5 }, nav);
-    for (const [xx, side] of [[x0, 'l'], [x1, 'r']]) {
+    for (const [xx, side] of this.opts.rangeMode === 'day' ? [] : [[x0, 'l'], [x1, 'r']]) { // day: width locked
       const g = s('g', { class: 'handle', 'data-side': side }, nav);
       s('rect', { x: xx - 7, y: 0, width: 14, height: NH, fill: 'transparent' }, g);
       s('rect', { x: xx - 3, y: NH / 2 - 11, width: 6, height: 22, rx: 3, fill: this.t.surface, stroke: this.t.accent, 'stroke-width': 1.5 }, g);
