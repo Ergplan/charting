@@ -153,7 +153,7 @@ export const css = `
 .efc-card[aria-pressed="false"]::after { background: var(--efc-muted); }
 .efc-card.is-static { cursor: default; }
 .efc-card-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-.efc-card-period { flex: none; font-size: 10.5px; font-weight: 600; color: var(--efc-muted); background: var(--efc-band); border-radius: 5px; padding: 1px 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.efc-card-period { margin-top: -1px; font-size: 10.5px; font-weight: 600; color: var(--efc-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .efc-card-label { font-size: 11.5px; font-weight: 600; color: var(--efc-ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .efc-card-icon { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; flex: none; color: var(--efc-ink2); background: color-mix(in srgb, var(--card-color) 16%, transparent); }
 .efc-card-icon svg { width: 12px; height: 12px; }

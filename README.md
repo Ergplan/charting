@@ -39,7 +39,7 @@ It works on **any website**: plain HTML with one `<script>` tag, React, Next.js,
 <div id="cards"></div>
 <div data-energy-flow data-src="/api/energy.json" data-cards="#cards"></div>
 
-<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.2.0/dist/energy-flow-chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.2.1/dist/energy-flow-chart.min.js"></script>
 ```
 
 That's all. The script finds every `[data-energy-flow]` element and mounts a chart on it.
@@ -88,7 +88,7 @@ ES-module sites can import the single-file module instead:
 ### C. React / Next.js
 
 ```bash
-npm i github:Ergplan/charting#v1.2.0       # package name: energy-flow-chart
+npm i github:Ergplan/charting#v1.2.1       # package name: energy-flow-chart
 ```
 
 ```jsx

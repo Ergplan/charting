@@ -528,6 +528,37 @@ test('toolbar: 1 day ↔ 7 days switches mode; period labels on toolbar and card
   assert.equal(period(), 'Thu 24 Sep', 'back to the day that was in view');
 });
 
+test('7-day mode: zoomed ranges snap to whole blocks; slow trackpad pans still move', async () => {
+  const b = track(await mount(host().chart, { data: synth(), rangeMode: 'week' }));
+  await frames();
+  const Q = 15 * 60_000;
+  const [a] = b.chart.store.get().range;
+  b.chart.setRange(a + 7 * Q + 123_456, a + 40 * Q - 98_765);
+  const [x0, x1] = b.chart.store.get().range;
+  assert.equal(x0 % Q, 0, 'start on a block boundary');
+  assert.equal(x1 % Q, 0, 'end on a block boundary');
+  const r = hitRect(b.chart);
+  for (let k = 0; k < 40; k++) b.chart.hit.dispatchEvent(new WheelEvent('wheel', { deltaX: 3, clientX: r.left + 50, clientY: r.top + 20, bubbles: true, cancelable: true }));
+  assert.ok(b.chart.store.get().range[0] > x0, 'many tiny horizontal scrolls add up to a pan');
+});
+
+test('cards: long periods get their own line, labels are never squeezed', async () => {
+  const { chart: el, cards } = host(1000);
+  cards.style.gridTemplateColumns = 'repeat(5, minmax(0, 1fr))';
+  const b = track(await mount(el, { data: synth(), cards, rangeMode: 'week' }));
+  const [a] = b.chart.store.get().range;
+  b.chart.setRange(a + 12.4 * 3600e3, a + 52.6 * 3600e3); // multi-day partial window
+  await frames();
+  for (const card of cards.querySelectorAll('.efc-card')) {
+    const label = card.querySelector('.efc-card-label');
+    const period = card.querySelector('.efc-card-period');
+    assert.ok(label.scrollWidth <= label.clientWidth + 1, `label "${label.textContent}" not truncated`);
+    assert.ok(period.getBoundingClientRect().top >= label.getBoundingClientRect().bottom - 1, 'period below the label');
+    assert.match(period.textContent, /:(00|15|30|45)\b.*:(00|15|30|45)$/, 'block-aligned times');
+    assert.ok(period.title.startsWith('Figures for'), 'full period on hover');
+  }
+});
+
 test('toolbar: ‹ › step days and disable at the data edges', async () => {
   const { chart: el } = host();
   const b = track(await mount(el, { data: synth() }));

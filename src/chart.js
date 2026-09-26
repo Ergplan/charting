@@ -423,8 +423,11 @@ export class EnergyFlowChart {
       const d = clamp(Math.floor((t0 + t1) / 2 / DAY) * DAY, first, lastDay);
       return [d, d + DAY];
     }
-    const minSpan = this.opts.minSpanMinutes * MIN;
-    let span = Math.max(minSpan, t1 - t0);
+    // week mode: snap to whole blocks, so periods read 12:15–16:45 and totals cover whole blocks
+    const stepMs = this.data.stepMinutes * MIN;
+    const minSpan = Math.ceil((this.opts.minSpanMinutes * MIN) / stepMs) * stepMs;
+    let span = Math.max(minSpan, Math.round((t1 - t0) / stepMs) * stepMs);
+    t0 = Math.round(t0 / stepMs) * stepMs;
     span = Math.min(span, bMax - a);
     let s0 = clamp(t0, a, bMax - span);
     return [s0, s0 + span];
@@ -1084,8 +1087,11 @@ export class EnergyFlowChart {
         this.setRange(at - f * ns, at - f * ns + ns);
       } else if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         e.preventDefault();
-        const d = (e.shiftKey ? e.deltaY : e.deltaX) / this.dim.pw * span;
-        this.setRange(t0 + d, t1 + d);
+        // ranges snap to whole blocks, so bank sub-block movement until it adds up
+        this._panAcc = (this._panAcc || 0) + ((e.shiftKey ? e.deltaY : e.deltaX) / this.dim.pw) * span;
+        const stepMs = this.data.stepMinutes * MIN;
+        const d = Math.trunc(this._panAcc / stepMs) * stepMs;
+        if (d) { this._panAcc -= d; this.setRange(t0 + d, t1 + d); }
       }
     }, { passive: false });
 

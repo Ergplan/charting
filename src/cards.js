@@ -103,7 +103,7 @@ export class EnergyCards {
       const label = el('div', 'efc-card-label', top);
       label.textContent = m.label;
       // period this card's number covers: always visible, so a zoomed / scrolled chart never leaves it ambiguous
-      const period = this.opts.showPeriod === false ? null : el('div', 'efc-card-period', top);
+      const period = this.opts.showPeriod === false ? null : el('div', 'efc-card-period', card); // own line under the label
       if (this.opts.icons && m.icon !== false) {
         const ic = el('div', 'efc-card-icon', top);
         const svg = document.createElementNS(SVGNS, 'svg');
