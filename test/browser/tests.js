@@ -840,6 +840,80 @@ test('dist bundle: <script> exposes window.EnergyFlow with the same API', async 
   assert.equal(b.chart.todCols.length, 5);
 });
 
+
+// ------------------------------------------------------------------ ergOS Harmony
+test('harmony theme: skin, font and smooth gradient glow drawing', async () => {
+  const { chart, cards } = host();
+  const b = await mount(chart, { data: synth(), cards, theme: 'harmony' });
+  cleanups.push(() => b.destroy());
+  liveCharts.add(b.chart);
+  await frames();
+  assert.equal(chart.dataset.efcSkin, 'harmony', 'skin attribute');
+  assert.equal(cards.dataset.efcSkin, 'harmony', 'cards follow the chart skin');
+  assert.match(chart.style.getPropertyValue('--efc-font'), /Urbanist/);
+  assert.ok(chart.querySelector('linearGradient[id^="efc-grad-"]'), 'gradient fills');
+  assert.ok(chart.querySelector('filter[id^="efc-glow-"]'), 'glow filter');
+  assert.match(chart.querySelector('.efc-areas path').getAttribute('d'), /C/, 'monotone curves');
+  b.chart.setTheme('energy');
+  await frames();
+  assert.ok(!chart.dataset.efcSkin, 'skin removed for classic themes');
+  assert.ok(!/C/.test(chart.querySelector('.efc-areas path').getAttribute('d')), 'classic stays linear');
+  liveCharts.delete(b.chart);
+});
+
+test('price landscape: renders, hovers and selects a day', async () => {
+  const { chart } = host(900);
+  const data = EF.samplePriceYear({ days: 60 });
+  let picked = null;
+  const pl = new EF.PriceLandscape(chart, { data, height: 300, onSelect: (d) => { picked = d; } });
+  cleanups.push(() => pl.destroy());
+  await frames();
+  const svg = chart.querySelector('.efc-pl-svg');
+  const r = svg.getBoundingClientRect();
+  const at = (fx, fy) => ({ clientX: r.left + 54 + (r.width - 60) * fx, clientY: r.top + 6 + (300 - 34) * fy, bubbles: true });
+  svg.dispatchEvent(new PointerEvent('pointermove', at(0.5, 0.5)));
+  assert.ok(!chart.querySelector('.efc-pl-tip').hidden, 'tooltip shows');
+  svg.dispatchEvent(new MouseEvent('click', at(0.5, 0.5)));
+  assert.ok(picked >= 28 && picked <= 31, `picked middle day, got ${picked}`);
+  assert.equal(pl.selectedDay, picked);
+  assert.ok(chart.querySelector('.efc-pl-sel'), 'selection outline');
+});
+
+test('price explorer: landscape selection drives the profile', async () => {
+  const { wrap } = host(900);
+  const a = document.createElement('div'); const b = document.createElement('div'); wrap.append(a, b);
+  const data = EF.samplePriceYear({ days: 30 });
+  const ex = EF.createPriceExplorer({ landscape: a, profile: b, data, day: 3 });
+  cleanups.push(() => ex.destroy());
+  await frames();
+  assert.equal(ex.profile.day, 3);
+  ex.landscape.select(12);
+  await frames();
+  assert.equal(ex.profile.day, 12);
+  assert.match(b.querySelector('.efc-pp-eyebrow').textContent, /PRICE PROFILE/);
+  assert.ok(b.querySelectorAll('.efc-pp-plot path[data-key]').length >= 5, 'one line per series');
+  ex.profile.step(1);
+  await frames();
+  assert.equal(ex.landscape.selectedDay, 13, 'profile stepping moves the landscape outline');
+});
+
+test('price profile: windows, toggles and keyboard readout', async () => {
+  const { chart } = host(900);
+  const data = EF.samplePriceYear({ days: 10 });
+  const pp = new EF.PriceProfile(chart, { data, day: 4, height: 320 });
+  cleanups.push(() => pp.destroy());
+  await frames();
+  assert.ok(chart.querySelectorAll('.efc-pp-window').length > 0, 'trade windows shaded');
+  chart.querySelector('.efc-pp-key').click();
+  await frames();
+  assert.ok(!chart.querySelector('.efc-pp-plot path[data-key="dam"]'), 'DAM toggled off');
+  const svg = chart.querySelector('.efc-pp-svg');
+  svg.focus();
+  svg.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+  assert.ok(!chart.querySelector('.efc-pp-tip').hidden, 'keyboard opens the readout');
+  assert.match(chart.querySelector('.efc-pp-tip').textContent, /Block 72/);
+});
+
 // ------------------------------------------------------------------ run
 const rowsEl = document.getElementById('rows');
 const results = [];

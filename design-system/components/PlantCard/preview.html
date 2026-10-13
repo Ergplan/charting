@@ -1,0 +1,18 @@
+<!-- @dsCard group="Data display" height=210 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Plant card</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+.pc-row { display:grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap:16px; }
+</style>
+</head>
+<body class="eg-stage">
+<div class="pc-row"><button class="eg-plant" aria-pressed="false"><span class="eg-plant__head"><span class="eg-plant__icon"><span data-icon="factory" data-size="20"></span></span><span><span class="eg-plant__name">HALDIRAM A12A</span><span class="eg-plant__loc"><span data-icon="pin" data-size="13"></span>Noida</span></span><span class="eg-plant__radio"></span></span><span class="eg-plant__stats"><span class="eg-plant__cap"><span data-icon="bolt" data-size="16"></span>2 MW</span><span class="eg-plant__iex"><span data-icon="trend" data-size="14"></span>IEX —</span></span><span class="eg-plant__foot"><span>Uttar Pradesh</span><span class="eg-chip"><span class="eg-dot eg-dot--off"></span>Auto: OFF</span></span></button><button class="eg-plant is-selected" aria-pressed="true"><span class="eg-plant__head"><span class="eg-plant__icon"><span data-icon="factory" data-size="20"></span></span><span><span class="eg-plant__name">HALDIRAM C1</span><span class="eg-plant__loc"><span data-icon="pin" data-size="13"></span>Noida</span></span><span class="eg-plant__radio"><span data-icon="check" data-size="14"></span></span></span><span class="eg-plant__stats"><span class="eg-plant__cap"><span data-icon="bolt" data-size="16"></span>4.5 MW</span><span class="eg-plant__iex"><span data-icon="trend" data-size="14"></span>IEX —</span></span><span class="eg-plant__foot"><span>Uttar Pradesh</span><span class="eg-chip"><span class="eg-dot eg-dot--off"></span>Auto: OFF</span></span></button><button class="eg-plant" aria-pressed="false"><span class="eg-plant__head"><span class="eg-plant__icon"><span data-icon="factory" data-size="20"></span></span><span><span class="eg-plant__name">HALDIRAM C3</span><span class="eg-plant__loc"><span data-icon="pin" data-size="13"></span>Noida</span></span><span class="eg-plant__radio"></span></span><span class="eg-plant__stats"><span class="eg-plant__cap"><span data-icon="bolt" data-size="16"></span>5.13 MW</span><span class="eg-plant__iex"><span data-icon="trend" data-size="14"></span>IEX —</span></span><span class="eg-plant__foot"><span>Uttar Pradesh</span><span class="eg-chip"><span class="eg-dot eg-dot--off"></span>Auto: OFF</span></span></button><button class="eg-plant" aria-pressed="false"><span class="eg-plant__head"><span class="eg-plant__icon"><span data-icon="factory" data-size="20"></span></span><span><span class="eg-plant__name">Haldiram B2</span><span class="eg-plant__loc"><span data-icon="pin" data-size="13"></span>Noida</span></span><span class="eg-plant__radio"></span></span><span class="eg-plant__stats"><span class="eg-plant__cap"><span data-icon="bolt" data-size="16"></span>2 MW</span><span class="eg-plant__iex"><span data-icon="trend" data-size="14"></span>IEX —</span></span><span class="eg-plant__foot"><span>Uttar Pradesh</span><span class="eg-chip"><span class="eg-dot eg-dot--off"></span>Auto: OFF</span></span></button></div>
+<script>
+document.querySelectorAll('.eg-plant').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.eg-plant').forEach(function(x){var on=x===b;x.classList.toggle('is-selected',on);x.setAttribute('aria-pressed',on);x.querySelector('.eg-plant__radio').innerHTML=on?ErgOS.icon('check',14):'';});});});
+</script>
+</body>
+</html>

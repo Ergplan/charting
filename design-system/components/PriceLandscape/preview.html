@@ -1,0 +1,19 @@
+<!-- @dsCard group="Charts" height=600 subtitle="Heatmap: a year of DAM prices by block" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Price landscape — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+</head>
+<body class="eg-stage">
+<div id="pl"></div>
+<script>
+  var data = EnergyFlow.samplePriceYear();
+  new EnergyFlow.PriceLandscape(document.getElementById('pl'), {
+    data: data, theme: 'harmony', height: 400,
+    selectedDay: EnergyFlow.dayIndexOf(data, '2026-07-04')
+  });
+</script>
+</body>
+</html>

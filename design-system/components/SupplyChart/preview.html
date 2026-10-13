@@ -1,0 +1,35 @@
+<!-- @dsCard group="Charts" height=720 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Supply chart</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+.sc-card { padding: 24px; } .sc-sources { margin: -4px 0 16px; gap: 8px; } .eg-readout__item.is-focus .eg-readout__value { color: var(--accent); }
+</style>
+</head>
+<body class="eg-stage">
+<section class="eg-glass sc-card"><div class="eg-card__head"><div><h3 class="eg-card__title">Energy supply <span class="eg-chip eg-chip--accent"><span class="eg-dot eg-dot--live"></span>Live</span></h3><p class="eg-card__sub">HALDIRAM C1 · Tue, 13 Oct 2026 · 96 blocks of 15 minutes</p></div><div class="eg-row"><div class="eg-seg eg-seg--sm" role="group" aria-label="Colour scheme" id="pal"><button aria-pressed="true" data-pal="harmony">Harmony</button><button aria-pressed="false" data-pal="volt">Volt</button><button aria-pressed="false" data-pal="verdant">Verdant</button><button aria-pressed="false" data-pal="aurora">Aurora</button></div><div class="eg-seg eg-seg--sm" role="group" aria-label="Range"><button aria-pressed="true">1 day</button><button aria-pressed="false">7 days</button></div><button class="eg-btn eg-btn--sm"><span data-icon="download" data-size="15"></span>Export PNG</button></div></div><div class="eg-row sc-sources" role="group" aria-label="Sources shown"><button class="eg-srcchip" data-series="hydro" data-src="hydro" aria-pressed="true"><span class="eg-srcchip__ic"><span data-icon="hydro" data-size="14"></span></span>Hydro</button><button class="eg-srcchip" data-series="wind" data-src="wind" aria-pressed="true"><span class="eg-srcchip__ic"><span data-icon="wind" data-size="14"></span></span>Wind</button><button class="eg-srcchip" data-series="solar" data-src="solar" aria-pressed="true"><span class="eg-srcchip__ic"><span data-icon="solar" data-size="14"></span></span>Solar</button><button class="eg-srcchip" data-series="iex" data-src="iex" aria-pressed="true"><span class="eg-srcchip__ic"><span data-icon="exchange" data-size="14"></span></span>Power exchange</button><button class="eg-srcchip" data-series="grid" data-src="grid" aria-pressed="true"><span class="eg-srcchip__ic"><span data-icon="grid" data-size="14"></span></span>Grid</button></div><div class="eg-readout"><div class="eg-readout__when"><b id="ro-time">Oct 13 · 22:15</b><span id="ro-hint">Latest block in view</span></div><div class="eg-readout__items"><div class="eg-readout__item" data-key="demand"><span class="eg-readout__label"><span class="eg-swatch eg-swatch--line"></span>Total demand</span><span class="eg-readout__value" id="ro-demand">750 kW</span></div><div class="eg-readout__item" data-key="grid"><span class="eg-readout__label"><span class="eg-swatch" data-series="grid"></span><span data-icon="grid" data-size="13"></span>Grid</span><span class="eg-readout__value" id="ro-grid">604 kW</span><span class="eg-readout__note">DISCOM</span></div><div class="eg-readout__item" data-key="iex"><span class="eg-readout__label"><span class="eg-swatch" data-series="iex"></span><span data-icon="exchange" data-size="13"></span>Power exchange</span><span class="eg-readout__value" id="ro-iex">0 kW</span><span class="eg-readout__note" id="ro-iexnote">Not purchased</span></div><div class="eg-readout__item" data-key="solar"><span class="eg-readout__label"><span class="eg-swatch" data-series="solar"></span><span data-icon="solar" data-size="13"></span>Solar</span><span class="eg-readout__value" id="ro-solar">0 kW</span><span class="eg-readout__note">After sunset</span></div><div class="eg-readout__item" data-key="wind"><span class="eg-readout__label"><span class="eg-swatch" data-series="wind"></span><span data-icon="wind" data-size="13"></span>Wind</span><span class="eg-readout__value" id="ro-wind">256 kW</span><span class="eg-readout__note">Open access</span></div><div class="eg-readout__item" data-key="hydro"><span class="eg-readout__label"><span class="eg-swatch" data-series="hydro"></span><span data-icon="hydro" data-size="13"></span>Hydro</span><span class="eg-readout__value" id="ro-hydro">146 kW</span><span class="eg-readout__note">Baseload</span></div></div></div><div class="eg-chart" id="supply" style="margin-top:14px"></div></section>
+<script>
+function setText(id, v){ var e=document.getElementById(id); if(e) e.textContent=v; }
+function onHover(r){
+  setText('ro-time', 'Oct 13 \u00b7 ' + r.time);
+  setText('ro-hint', r.slot === ErgOS.sample.now ? 'Latest block in view' : 'Block ' + r.block + ' of 96');
+  setText('ro-demand', ErgOS.inr(r.demand) + ' kW');
+  ['grid','iex','solar','wind','hydro'].forEach(function(k){ setText('ro-' + k, ErgOS.inr(Math.round(r[k] || 0)) + ' kW'); });
+  document.querySelectorAll('.eg-readout__item[data-key]').forEach(function(e){ e.classList.toggle('is-focus', e.getAttribute('data-key') === r.focus); });
+  setText('ro-iexnote', r.iex ? '@ \u20b95.33 / kWh' : 'Not purchased');
+}
+
+var host = document.getElementById('supply'), pal = 'harmony', chart;
+var ALL = [{key:'hydro',values:ErgOS.sample.hydro},{key:'wind',values:ErgOS.sample.wind},{key:'solar',values:ErgOS.sample.solar},{key:'iex',values:ErgOS.sample.iex},{key:'grid'}];
+function build(){ host.innerHTML=''; var on={}; document.querySelectorAll('[data-src]').forEach(function(b){ on[b.getAttribute('data-src')] = b.getAttribute('aria-pressed')==='true'; });
+  chart = ErgOS.supplyChart(host, {palette: pal, layers: ALL.filter(function(l){ return on[l.key]; }), onHover: onHover}); }
+document.querySelectorAll('[data-src]').forEach(function(b){ b.addEventListener('click', function(){ b.setAttribute('aria-pressed', b.getAttribute('aria-pressed')==='true'?'false':'true'); build(); }); });
+var palG = document.getElementById('pal');
+if (palG) palG.addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b) return; palG.querySelectorAll('button').forEach(function(x){ x.setAttribute('aria-pressed', x===b?'true':'false'); }); pal=b.getAttribute('data-pal'); ErgOS.palette(document.querySelector('.sc-card'), pal); });
+build();
+</script>
+</body>
+</html>

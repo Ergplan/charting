@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="../harmony.css">
+<script src="../../dist/energy-flow-chart.min.js"></script>
+<script src="../harmony.js"></script>
+<meta charset="utf-8">
+<title>Progress track</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+.pt-folder { padding: 22px 26px; border-radius: var(--radius-lg); background: linear-gradient(160deg, var(--folder-hi), var(--folder) 50%, var(--folder-deep)); color: var(--on-folder); }
+</style>
+</head>
+<body class="eg-stage">
+<div class="eg-stack" style="gap:28px;max-width:820px">
+  <div class="eg-track" style="--value:92.7%"><div class="eg-track__labels"><span>00:00 · Block 1<small>Day started</small></span><span>24:00 · Block 96<small>7 blocks to go</small></span></div><div class="eg-track__rail"><div class="eg-track__fill"></div><div class="eg-track__marker"></div></div></div>
+  <div class="eg-track" style="--value:36%"><div class="eg-track__labels"><span>IEX window opens<small>08:45 · Block 36</small></span><span>Window closes<small>15:15 · Block 61</small></span></div><div class="eg-track__rail"><div class="eg-track__fill"></div><div class="eg-track__marker"></div></div></div>
+  <div class="eg-on-folder pt-folder"><div class="eg-track" style="--value:66.8%"><div class="eg-track__labels"><span>Landed ₹4.24 / kWh<small>What you paid via IEX</small></span><span>Benchmark ₹6.35 / kWh<small>Grid cost avoided</small></span></div><div class="eg-track__rail"><div class="eg-track__fill"></div><div class="eg-track__marker"></div></div></div></div>
+</div>
+<script>if (window.top === window) { var t = document.createElement("button"); t.className = "eg-btn eg-btn--sm"; t.textContent = "Switch theme"; t.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:9"; t.onclick = function () { var r = document.documentElement; r.setAttribute("data-theme", r.getAttribute("data-theme") === "light" ? "dark" : "light"); }; document.body.appendChild(t); }</script>
+</body>
+</html>

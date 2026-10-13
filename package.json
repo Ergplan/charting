@@ -1,7 +1,7 @@
 {
   "name": "energy-flow-chart",
-  "version": "1.2.1",
-  "description": "Zero-dependency stacked-area chart with linked KPI cards for time-series energy consumption & generation data",
+  "version": "1.3.0",
+  "description": "ergOS charting library and the ergOS Harmony design system: zero-dependency energy charts (stacked supply, price landscape heatmap, price profile) with linked KPI cards, plus Harmony tokens, CSS components and runtime",
   "type": "module",
   "main": "src/index.js",
   "module": "src/index.js",
@@ -15,23 +15,31 @@
       "types": "./types/react.d.ts",
       "default": "./react/index.js"
     },
-    "./dist/*": "./dist/*"
+    "./dist/*": "./dist/*",
+    "./design-system/*": "./design-system/*",
+    "./harmony.css": "./design-system/harmony.css",
+    "./tokens.css": "./design-system/tokens/tokens.css",
+    "./tokens": "./design-system/tokens/tokens.js"
   },
   "files": [
     "src",
     "types",
     "react",
     "dist",
-    "tools/xlsx-to-json.mjs"
+    "tools/xlsx-to-json.mjs",
+    "design-system"
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "node tools/build.mjs",
+    "build": "node tools/build.mjs && node tools/build-design-system.mjs",
     "test": "node --test test/*.test.mjs",
     "demo": "node tools/serve.mjs",
     "convert": "node tools/xlsx-to-json.mjs",
     "test:browser": "node tools/test-browser.mjs",
-    "test:all": "npm test && npm run test:browser"
+    "test:all": "npm test && npm run test:browser",
+    "build:lib": "node tools/build.mjs",
+    "build:ds": "node tools/build-design-system.mjs",
+    "demo:next": "npm --prefix apps/ergos-demo install && npm --prefix apps/ergos-demo run dev"
   },
   "peerDependencies": {
     "react": ">=17"
@@ -50,5 +58,15 @@
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/Ergplan/charting.git"
-  }
+  },
+  "keywords": [
+    "ergos",
+    "harmony",
+    "design-system",
+    "energy",
+    "charts",
+    "heatmap",
+    "iex",
+    "stacked-area"
+  ]
 }

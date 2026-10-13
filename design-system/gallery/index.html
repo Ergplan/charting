@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ergOS Harmony</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="../harmony.css">
+<style>
+  body.eg-stage { padding: 40px 24px 80px; }
+  .wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 40px; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+  header p { margin: 8px 0 0; color: var(--ink-muted); max-width: 60ch; }
+  h2.g { margin: 0 0 14px; }
+  .grid { display: grid; gap: 18px; }
+  .card { border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+  .card iframe { display: block; width: 100%; border: 0; background: var(--canvas); }
+  .card .meta { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line); }
+  .card .meta b { font-weight: 600; }
+  .card .meta span { color: var(--ink-muted); font-size: 13px; }
+  .card .meta a { color: var(--accent); font-size: 13px; text-decoration: none; white-space: nowrap; }
+</style>
+</head>
+<body class="eg-stage">
+<div class="wrap">
+  <header><div><h1 class="eg-h1">erg<em>OS</em> Harmony</h1><p>The ergOS interface kit: tokens, components, charts and screens. Every card below is a live page in this folder; open one to inspect it on its own.</p></div>
+  <button class="eg-btn" onclick="var r=document.documentElement;var n=r.getAttribute('data-theme')==='light'?'dark':'light';r.setAttribute('data-theme',n);document.querySelectorAll('iframe').forEach(function(f){try{f.contentDocument.documentElement.setAttribute('data-theme',n)}catch(e){}})">Switch theme</button></header>
+  <section><h2 class="g eg-overline">Overview</h2><div class="grid">
+    <article class="card"><iframe src="Cover.html" title="Cover" loading="lazy" style="height:336px"></iframe><div class="meta"><div><b>Cover</b> <span></span></div><a href="Cover.html">Open</a></div></article>
+    <article class="card"><iframe src="Logo.html" title="Logo" loading="lazy" style="height:468px"></iframe><div class="meta"><div><b>Logo</b> <span>The jouleWise wordmark in Harmony glass: Urbanist letters with the “o” as a translucent green glass orb (refraction glow, engraved J-and-wave glyph, specular cap, rim light)</span></div><a href="Logo.html">Open</a></div></article>
+  </div></section>
+  <section><h2 class="g eg-overline">Actions</h2><div class="grid">
+    <article class="card"><iframe src="Button.html" title="Button" loading="lazy" style="height:278px"></iframe><div class="meta"><div><b>Button</b> <span>Pill buttons in four weights; the glowing primary is the one thing a screen exists to do.</span></div><a href="Button.html">Open</a></div></article>
+    <article class="card"><iframe src="IconButton.html" title="IconButton" loading="lazy" style="height:168px"></iframe><div class="meta"><div><b>IconButton</b> <span>Round glass buttons for single-icon actions: back, comment, export, notifications, paging.</span></div><a href="IconButton.html">Open</a></div></article>
+    <article class="card"><iframe src="SegmentedControl.html" title="SegmentedControl" loading="lazy" style="height:248px"></iframe><div class="meta"><div><b>SegmentedControl</b> <span>A pill track of 2 to 4 mutually exclusive views: Day view / Month to date, 1 day / 7 days, Timeline / ToD.</span></div><a href="SegmentedControl.html">Open</a></div></article>
+  </div></section>
+  <section><h2 class="g eg-overline">Navigation</h2><div class="grid">
+    <article class="card"><iframe src="Sidebar.html" title="Sidebar" loading="lazy" style="height:900px"></iframe><div class="meta"><div><b>Sidebar</b> <span>The desktop navigation rail: the ergOS wordmark and role chip, grouped links with 19px icons, the Dashboard group expanded with a tree line, and the organisation at the foot.</span></div><a href="Sidebar.html">Open</a></div></article>
+    <article class="card"><iframe src="TabDock.html" title="TabDock" loading="lazy" style="height:168px"></iframe><div class="meta"><div><b>TabDock</b> <span>The floating bottom dock of the mobile app: three to four destinations, icon plus one-word label.</span></div><a href="TabDock.html">Open</a></div></article>
+    <article class="card"><iframe src="TopBar.html" title="TopBar" loading="lazy" style="height:218px"></iframe><div class="meta"><div><b>TopBar</b> <span>Screen chrome: back button, breadcrumb, then live status, theme, notifications and the user</span></div><a href="TopBar.html">Open</a></div></article>
+  </div></section>
+  <section><h2 class="g eg-overline">Inputs</h2><div class="grid">
+    <article class="card"><iframe src="AskBar.html" title="AskBar" loading="lazy" style="height:278px"></iframe><div class="meta"><div><b>AskBar</b> <span>The prompt box for asking ergOS about the data on screen</span></div><a href="AskBar.html">Open</a></div></article>
+    <article class="card"><iframe src="Fields.html" title="Fields" loading="lazy" style="height:268px"></iframe><div class="meta"><div><b>Fields</b> <span>Inputs for filtering and parameters: the pill date range, text and select fields, and switches.</span></div><a href="Fields.html">Open</a></div></article>
+    <article class="card"><iframe src="VoiceBar.html" title="VoiceBar" loading="lazy" style="height:808px"></iframe><div class="meta"><div><b>VoiceBar</b> <span>Real talk with ergOS: a glass pill with a living orb, the transcript or answer as captions, a waveform and one big mic button</span></div><a href="VoiceBar.html">Open</a></div></article>
+  </div></section>
+  <section><h2 class="g eg-overline">Status</h2><div class="grid">
+    <article class="card"><iframe src="Chip.html" title="Chip" loading="lazy" style="height:198px"></iframe><div class="meta"><div><b>Chip</b> <span>Small pills for status, codes and times</span></div><a href="Chip.html">Open</a></div></article>
+  </div></section>
+  <section><h2 class="g eg-overline">Data display</h2><div class="grid">
+    <article class="card"><iframe src="ActivityTimeline.html" title="ActivityTimeline" loading="lazy" style="height:808px"></iframe><div class="meta"><div><b>ActivityTimeline</b> <span>The trading log: a ruler-ticked rail with round event icons, each event followed by a nested glass card with who, what, block thumbnails and a time pill.</span></div><a href="ActivityTimeline.html">Open</a></div></article>
+    <article class="card"><iframe src="EnergySources.html" title="EnergySources" loading="lazy" style="height:608px"></iframe><div class="meta"><div><b>EnergySources</b> <span>The source vocabulary: one icon and one colour per source, used the same way in tiles, chips, legends and chart bands.</span></div><a href="EnergySources.html">Open</a></div></article>
+    <article class="card"><iframe src="FolderCard.html" title="FolderCard" loading="lazy" style="height:518px"></iframe><div class="meta"><div><b>FolderCard</b> <span>The signature surface of ergOS: a green glass folder with a raised tab, an S-curved shoulder and frosted sheets tucked behind it</span></div><a href="FolderCard.html">Open</a></div></article>
+    <article class="card"><iframe src="PlantCard.html" title="PlantCard" loading="lazy" style="height:258px"></iframe><div class="meta"><div><b>PlantCard</b> <span>A selectable card per plant: name, location, contracted capacity, IEX status and auto-trading state.</span></div><a href="PlantCard.html">Open</a></div></article>
+    <article class="card"><iframe src="ProgressTrack.html" title="ProgressTrack" loading="lazy" style="height:348px"></iframe><div class="meta"><div><b>ProgressTrack</b> <span>A position along a known span: a solid line for what has happened, a dotted line for what remains, and a downward triangle at &quot;now&quot;.</span></div><a href="ProgressTrack.html">Open</a></div></article>
+    <article class="card"><iframe src="StatTile.html" title="StatTile" loading="lazy" style="height:588px"></iframe><div class="meta"><div><b>StatTile</b> <span>A glass KPI tile: label and series icon, date, one value with its unit, a 7-day sparkline and a footnote.</span></div><a href="StatTile.html">Open</a></div></article>
+  </div></section>
+  <section><h2 class="g eg-overline">Charts</h2><div class="grid">
+    <article class="card"><iframe src="EnergyFlowHarmony.html" title="EnergyFlowHarmony" loading="lazy" style="height:808px"></iframe><div class="meta"><div><b>EnergyFlowHarmony</b> <span>The production supply chart (EnergyFlowChart from this repo) in the Harmony theme: the same data engine, toolbar, ToD view, pinned crosshair, CSV and PNG export and linked KPI cards, drawn with Harmony's smooth fading bands, glowing top edges and dotted demand line.</span></div><a href="EnergyFlowHarmony.html">Open</a></div></article>
+    <article class="card"><iframe src="MixRing.html" title="MixRing" loading="lazy" style="height:328px"></iframe><div class="meta"><div><b>MixRing</b> <span>A thick, gapped ring for the share of each source in today's demand, with the headline share in the centre and a value legend beside it.</span></div><a href="MixRing.html">Open</a></div></article>
+    <article class="card"><iframe src="PriceExplorer.html" title="PriceExplorer" loading="lazy" style="height:900px"></iframe><div class="meta"><div><b>PriceExplorer</b> <span>The PriceLandscape and the PriceProfile sharing one store: click any cell in the landscape and the profile below shows that day; step days in the profile and the landscape's outline follows.</span></div><a href="PriceExplorer.html">Open</a></div></article>
+    <article class="card"><iframe src="PriceLandscape.html" title="PriceLandscape" loading="lazy" style="height:648px"></iframe><div class="meta"><div><b>PriceLandscape</b> <span>A year of exchange prices in one picture: one column per day, one row per 15-minute block (00:00 at the top), colour from ₹0 to ₹10 per kWh</span></div><a href="PriceLandscape.html">Open</a></div></article>
+    <article class="card"><iframe src="PriceProfile.html" title="PriceProfile" loading="lazy" style="height:608px"></iframe><div class="meta"><div><b>PriceProfile</b> <span>One day of clearing prices as step lines per block: DAM (bold, glowing), RTM and GDAM, against the state's marginal variable cost (dashed) and the cheapest spare unit's cost (dotted)</span></div><a href="PriceProfile.html">Open</a></div></article>
+    <article class="card"><iframe src="ReadoutStrip.html" title="ReadoutStrip" loading="lazy" style="height:178px"></iframe><div class="meta"><div><b>ReadoutStrip</b> <span>The legend that reads values: the time of the block in view on the left, then each series with its swatch, value and a note.</span></div><a href="ReadoutStrip.html">Open</a></div></article>
+    <article class="card"><iframe src="SavingsChart.html" title="SavingsChart" loading="lazy" style="height:488px"></iframe><div class="meta"><div><b>SavingsChart</b> <span>Daily net savings as rounded green bars with the cleared volume as a sand line on a second axis, plus a dashed daily average.</span></div><a href="SavingsChart.html">Open</a></div></article>
+    <article class="card"><iframe src="SlotHeatmap.html" title="SlotHeatmap" loading="lazy" style="height:378px"></iframe><div class="meta"><div><b>SlotHeatmap</b> <span>Seven days by 96 blocks: each cell is one 15-minute block, filled with the IEX series at an opacity proportional to cleared kW</span></div><a href="SlotHeatmap.html">Open</a></div></article>
+    <article class="card"><iframe src="SupplyChart.html" title="SupplyChart" loading="lazy" style="height:768px"></iframe><div class="meta"><div><b>SupplyChart</b> <span>Today's energy by source, block by block: smooth stacked bands for hydro, wind, solar, power exchange and grid under the dotted demand line, a hatched forecast zone after now, and a cursor that rests on the latest block.</span></div><a href="SupplyChart.html">Open</a></div></article>
+    <article class="card"><iframe src="TrendChart.html" title="TrendChart" loading="lazy" style="height:568px"></iframe><div class="meta"><div><b>TrendChart</b> <span>Two or three overlaid series on one axis, the clean way: a bright series with a glowing line and a deep fade, a dashed series with a quiet grey fade, a cursor with value pills on top and an outlined time pill below</span></div><a href="TrendChart.html">Open</a></div></article>
+  </div></section>
+  <section><h2 class="g eg-overline">Screens</h2><div class="grid">
+    <article class="card"><iframe src="MobileScreens.html" title="MobileScreens" loading="lazy" style="height:988px"></iframe><div class="meta"><div><b>MobileScreens</b> <span></span></div><a href="MobileScreens.html">Open</a></div></article>
+    <article class="card"><iframe src="SavingsScreen.html" title="SavingsScreen" loading="lazy" style="height:1100px"></iframe><div class="meta"><div><b>SavingsScreen</b> <span></span></div><a href="SavingsScreen.html">Open</a></div></article>
+    <article class="card"><iframe src="TodayScreen.html" title="TodayScreen" loading="lazy" style="height:1100px"></iframe><div class="meta"><div><b>TodayScreen</b> <span></span></div><a href="TodayScreen.html">Open</a></div></article>
+  </div></section>
+</div>
+</body>
+</html>

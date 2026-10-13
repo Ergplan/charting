@@ -11,6 +11,11 @@ A zero-dependency charting library for **energy consumption and generation time 
 - **Pin and share a moment**: the crosshair (or ToD zone) stays where the pointer left the chart. **Export PNG** then saves the chart with the readout band at that moment, and the file is named after the timestamp.
 - **Linked KPI cards**: each card shows the period it covers (e.g. "Sat 26 Sep", "20–26 Sep" or "24 Sep 06:00–16:00"). Cards follow the hover and highlight their source when hovered. They are read-only (not clickable).
 
+- **Price landscape** (new, ergOS Harmony): a year of exchange prices as one heatmap, days across, blocks down, ₹0–₹10. Click a day to open it.
+- **Price profile** (new): one day's DAM, RTM and GDAM step lines against the state's marginal and cheapest spare variable cost, with buy and sell windows shaded.
+
+> **ergOS Harmony.** This repo also holds the ergOS design system (`design-system/`): tokens, the `eg-` CSS component kit, the `window.ErgOS` runtime and the redesigned screens. Start with the developer guide, [`docs/HARMONY.md`](docs/HARMONY.md), the Next.js demo app (`npm run demo:next` → <http://localhost:3000>, source in `apps/ergos-demo/`) and the live gallery (`npm run demo` → `/design-system/gallery/`). The jouleWise logo in Harmony glass is in `design-system/assets/logo/`. The repo will be renamed **ergOSUI**; links redirect.
+
 It works on **any website**: plain HTML with one `<script>` tag, React, Next.js, Vue, Angular, WordPress… There is nothing to configure if your data uses the standard *Energy Supply Chart* export columns.
 
 ---
@@ -28,6 +33,7 @@ It works on **any website**: plain HTML with one `<script>` tag, React, Next.js,
 9. [Recipes](#9-recipes)
 10. [Working on the library](#10-working-on-the-library)
 11. [Troubleshooting](#11-troubleshooting)
+12. [Price landscape and price profile](#12-price-landscape-and-price-profile)
 
 ---
 
@@ -39,7 +45,7 @@ It works on **any website**: plain HTML with one `<script>` tag, React, Next.js,
 <div id="cards"></div>
 <div data-energy-flow data-src="/api/energy.json" data-cards="#cards"></div>
 
-<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.2.1/dist/energy-flow-chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.3.0/dist/energy-flow-chart.min.js"></script>
 ```
 
 That's all. The script finds every `[data-energy-flow]` element and mounts a chart on it.
@@ -50,7 +56,7 @@ That's all. The script finds every `[data-energy-flow]` element and mounts a cha
 | `data-cards` | CSS selector of an element to fill with KPI cards | none |
 | `data-cards-show` | which cards, e.g. `demand,grid,market,avgPrice` | 5 defaults |
 | `data-view` | `timeline` or `tod` | `timeline` |
-| `data-theme` | `energy`, `sunset`, `contrast` | `energy` |
+| `data-theme` | `energy`, `sunset`, `contrast`, or the ergOS Harmony family `harmony`, `volt`, `verdant`, `aurora` | `energy` |
 | `data-mode` | `auto`, `light`, `dark` | `auto` |
 | `data-height` | chart height in px | `420` |
 | `data-refresh` | re-fetch `data-src` every N seconds (live updates) | off |
@@ -88,7 +94,7 @@ ES-module sites can import the single-file module instead:
 ### C. React / Next.js
 
 ```bash
-npm i github:Ergplan/charting#v1.2.1       # package name: energy-flow-chart
+npm i github:Ergplan/charting#v1.3.0       # package name: energy-flow-chart
 ```
 
 ```jsx
@@ -318,12 +324,14 @@ Layout: the cards container is a CSS grid. Set columns yourself, e.g. `#cards { 
 ## 6. Colours and themes
 
 ```js
-theme: 'energy' | 'sunset' | 'contrast',  mode: 'auto' | 'light' | 'dark'
+theme: 'energy' | 'sunset' | 'contrast' | 'harmony' | 'volt' | 'verdant' | 'aurora',  mode: 'auto' | 'light' | 'dark'
 ```
+
+**ergOS Harmony** (`harmony`, `volt`, `verdant`, `aurora`) is the ergOS design system's look: Blue Charcoal ground, Harmony Green accent, the Harmony skin (pill toolbar, glass readout band and cards, Urbanist), smooth monotone curves, bands that fade from a glowing top edge, and a dotted demand line. It adds the source roles `solar`, `wind`, `hydro` and the price roles used by the price charts. Override the drawing per chart with `curve: 'linear' | 'smooth' | 'step'`, `fill: 'solid' | 'gradient'` and `glow`. See [`docs/HARMONY.md`](docs/HARMONY.md).
 
 `mode: 'auto'` follows `<html data-theme="dark|light">` first, then the OS setting.
 
-Your own brand colours:
+Your own brand colours (or `extends: 'harmony'` to start from Harmony and change only what differs):
 
 ```js
 EnergyFlow.registerTheme({
@@ -566,3 +574,24 @@ After every test the suite also asserts that no `NaN` or `Infinity` appears anyw
 | Card prices show `–` | no `prices` entry for that source, or zero volume |
 | Chart overflows on mobile | put it in a container with a definite width; inside CSS grid use `grid-template-columns: minmax(0, 1fr)` |
 | Wrong colours in dark mode | set `mode`, or set `data-theme` on `<html>`; `auto` follows both |
+
+---
+
+## 12. Price landscape and price profile
+
+```js
+import { fromPriceRows, createPriceExplorer, PriceLandscape, PriceProfile, samplePriceYear } from 'energy-flow-chart';
+
+const prices = fromPriceRows(rows);   // Date, Block, DAM, RTM, GDAM, Marginal state VC, Cheapest spare VC (₹/MWh or ₹/kWh)
+createPriceExplorer({ landscape: '#landscape', profile: '#profile', data: prices, day: '2026-07-04', theme: 'harmony' });
+```
+
+| | PriceLandscape | PriceProfile |
+| --- | --- | --- |
+| Shows | every block of every day, colour = price | one day, a step line per market |
+| Key options | `market`, `domain` (default `[0, 10]`), `colormap` (`landscape`, `harmony`, `volt`, `verdant`, or stops), `onSelect(day, block)` | `day`, `series`, `windows` (`'auto'`, an array of `{ type, from, to }` blocks, a function, or `false`), `onDayChange` |
+| Keyboard | arrows move a block / day (Shift: 4 blocks / 7 days), Enter selects | arrows move a block, PageUp/PageDown change day |
+| Methods | `select(day)`, `setMarket()`, `setData()`, `setTheme()` | `setDay(day)`, `step(n)`, `toggle(key)`, `windows()`, `setData()`, `setTheme()` |
+
+`tradeWindows(prices, day)` is the automatic rule: **buy** where the market clears below the marginal state VC, **sell** where it clears above the cheapest spare VC. `samplePriceYear()` returns illustrative data for demos and tests. Full guide: [`docs/HARMONY.md`](docs/HARMONY.md#7-price-landscape-and-price-profile).
+

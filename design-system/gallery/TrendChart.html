@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="../harmony.css">
+<script src="../../dist/energy-flow-chart.min.js"></script>
+<script src="../harmony.js"></script>
+<meta charset="utf-8">
+<title>Trend chart</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+.tc-card { padding: 24px; } .tc-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom: 18px; }
+</style>
+</head>
+<body class="eg-stage">
+<section class="eg-glass eg-pal-volt tc-card">
+  <div class="tc-head">
+    <div><h3 class="eg-card__title">Actual vs forecast</h3><p class="eg-card__sub">HALDIRAM C1 · demand in kW · Tue, 13 Oct 2026</p></div>
+    <div class="eg-pills" role="group" aria-label="Range"><button aria-pressed="false">All</button><button aria-pressed="true">Day</button><button aria-pressed="false">Week</button><button aria-pressed="false">Month</button></div>
+  </div>
+  <div class="eg-chart" id="trend"></div>
+</section>
+<script>
+ErgOS.trendChart(document.getElementById('trend'), {height: 360});document.querySelectorAll('.eg-pills').forEach(function(g){g.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;g.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});});});
+</script>
+<script>if (window.top === window) { var t = document.createElement("button"); t.className = "eg-btn eg-btn--sm"; t.textContent = "Switch theme"; t.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:9"; t.onclick = function () { var r = document.documentElement; r.setAttribute("data-theme", r.getAttribute("data-theme") === "light" ? "dark" : "light"); }; document.body.appendChild(t); }</script>
+</body>
+</html>

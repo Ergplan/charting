@@ -26,6 +26,12 @@ export const icons = {
   rupee: '<path d="M6 3h12M6 8h12M6 13l8 8M6 13h3a5 5 0 0 0 0-10"/>',
   surplus: '<path d="M12 19V5M5 12l7-7 7 7"/>',
   plug: '<path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/>',
+  // ergOS Harmony source icons (same drawings as design-system/harmony.js)
+  solar: '<circle cx="17.5" cy="5.5" r="2.2"/><path d="M17.5 1.6v.7M21.4 5.5h-.7M20.3 2.7l-.5.5M13.6 5.5h.7M14.7 2.7l.5.5"/><path d="M2.8 12.2h12.6l2.1 6.6H4.9z"/><path d="M7.9 12.2l.7 6.6M11.9 12.2l1.4 6.6M3.9 15.5h12.6"/><path d="M11 18.8v2.7M8 21.5h6"/>',
+  wind: '<path d="M12 10.4v11.1M9 21.5h6"/><circle cx="12" cy="9" r="1.4"/><path d="M12 7.6c-.5-2.3-.1-4.3 1.1-5.6.9 1.6.5 3.7-1.1 5.6z"/><path d="M12 7.6c-.5-2.3-.1-4.3 1.1-5.6.9 1.6.5 3.7-1.1 5.6z" transform="rotate(120 12 9)"/><path d="M12 7.6c-.5-2.3-.1-4.3 1.1-5.6.9 1.6.5 3.7-1.1 5.6z" transform="rotate(240 12 9)"/>',
+  hydro: '<path d="M12 2.8s-5.3 5.8-5.3 9.9a5.3 5.3 0 0 0 10.6 0c0-4.1-5.3-9.9-5.3-9.9z"/><path d="M9.4 13.2c.9.7 1.8.7 2.6 0s1.8-.7 2.6 0"/><path d="M2.5 21.2c1.6-1 3.2-1 4.8 0s3.2 1 4.7 0 3.2-1 4.8 0 3.1 1 4.7 0"/>',
+  exchange: '<path d="M4 8.5h13.5M14 4.5l4 4-4 4"/><path d="M20 15.5H6.5M10 11.5l-4 4 4 4"/>',
+  pylon: '<path d="M12 2.5 7 21.5M12 2.5l5 19"/><path d="M4.5 7h15M6.5 11.5h11"/><path d="M4.5 7v2M19.5 7v2M8.6 15.6l6.8 3.9M15.4 15.6l-6.8 3.9"/>',
 };
 
 const FORMATS = {
@@ -161,6 +167,11 @@ export class EnergyCards {
         this.el.style.setProperty(`--efc-${k}-from-chart`, this.chart.t[k]);
       }
       this.el.style.colorScheme = this.chart.modeResolved;
+      // follow the chart's skin and font (Harmony pills, glass cards)
+      const skin = this.chart.el.dataset.efcSkin;
+      if (skin) this.el.dataset.efcSkin = skin; else delete this.el.dataset.efcSkin;
+      const font = this.chart.theme && this.chart.theme.font;
+      if (font) this.el.style.setProperty('--efc-font', font); else this.el.style.removeProperty('--efc-font');
     }
     const [i0, i1] = this._span();
     const agg = aggregator(d, i0, i1);

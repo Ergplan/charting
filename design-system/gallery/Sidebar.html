@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="../harmony.css">
+<script src="../../dist/energy-flow-chart.min.js"></script>
+<script src="../harmony.js"></script>
+<meta charset="utf-8">
+<title>Sidebar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+.eg-side { height: 852px; }
+</style>
+</head>
+<body class="eg-stage">
+<aside class="eg-side"><div class="eg-brand"><span class="eg-wordmark">erg<i>OS</i></span><span class="eg-chip"><span data-icon="shield" data-size="14"></span>Admin</span></div><nav class="eg-nav"><div class="eg-overline eg-nav__group">Monitor</div><a class="eg-nav__item" href="#" aria-current="page"><span data-icon="apps" data-size="19"></span>Dashboard<span class="eg-chev" data-icon="chevron-down" data-size="16"></span></a><div class="eg-nav__sub"><a class="eg-nav__item" href="#">Home</a><a class="eg-nav__item" href="#" aria-current="page">Today (T)</a><a class="eg-nav__item" href="#">Actual vs Forecast</a><a class="eg-nav__item" href="#">T+1 Day</a><a class="eg-nav__item" href="#">Savings</a></div><div class="eg-overline eg-nav__group">Operate</div><a class="eg-nav__item" href="#"><span data-icon="bars" data-size="19"></span>Trading</a><a class="eg-nav__item" href="#"><span data-icon="sliders" data-size="19"></span>Configuration</a><a class="eg-nav__item" href="#"><span data-icon="battery" data-size="19"></span>Storage</a><a class="eg-nav__item" href="#"><span data-icon="file" data-size="19"></span>SOP default</a><a class="eg-nav__item" href="#"><span data-icon="antenna" data-size="19"></span>IEX data</a><a class="eg-nav__item" href="#"><span data-icon="calc" data-size="19"></span>Landing cost calculator</a><a class="eg-nav__item" href="#"><span data-icon="trend" data-size="19"></span>Analytics</a><a class="eg-nav__item" href="#"><span data-icon="receipt" data-size="19"></span>Billing and costing</a></nav><div class="eg-side__foot"><b>Joulewise</b>Energy management platform</div></aside>
+<script>if (window.top === window) { var t = document.createElement("button"); t.className = "eg-btn eg-btn--sm"; t.textContent = "Switch theme"; t.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:9"; t.onclick = function () { var r = document.documentElement; r.setAttribute("data-theme", r.getAttribute("data-theme") === "light" ? "dark" : "light"); }; document.body.appendChild(t); }</script>
+</body>
+</html>

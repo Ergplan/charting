@@ -12,6 +12,10 @@ export { presets, energySupplyPreset, SAMPLE_PRICES } from './presets.js';
 export * as format from './format.js';
 export { toCSV, svgToPNG, download } from './export.js';
 export { injectStyles } from './styles.js';
+export { PriceLandscape, createPriceLandscape } from './heatmap.js';
+export { PriceProfile, createPriceProfile, createPriceExplorer, DEFAULT_PROFILE_SERIES } from './priceprofile.js';
+export { fromPriceRows, priceAt, dayPrices, dayIndexOf, dayStats, tradeWindows, colormaps, colorAt, colormapCSS, samplePriceYear, PRICE_MARKETS, DEFAULT_PRICE_COLUMNS } from './prices.js';
+export { monotonePath, monotoneBack, monotoneSegments, stepPath } from './curves.js';
 
 import { EnergyFlowChart } from './chart.js';
 import { EnergyCards } from './cards.js';

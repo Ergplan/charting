@@ -1,0 +1,26 @@
+{
+  "name": "ergos-demo",
+  "version": "1.3.0",
+  "private": true,
+  "description": "ergOS Harmony demo: walk through the redesigned ergOS screens built with the design system and the charting library in this repo",
+  "scripts": {
+    "sync": "node scripts/sync-assets.mjs",
+    "predev": "npm run sync",
+    "dev": "next dev -p 3000",
+    "prebuild": "npm run sync",
+    "build": "next build",
+    "start": "next start -p 3000"
+  },
+  "dependencies": {
+    "energy-flow-chart": "file:../..",
+    "next": "15.5.26",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "typescript": "5.9.3"
+  }
+}

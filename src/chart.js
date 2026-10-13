@@ -8,6 +8,7 @@ import { renderTod, todColumnAt, computeTod, DEFAULT_TOD_ZONES } from './tod.js'
 import { fmtPeriod, fmtPrice, fmtMoney, fmtEnergy, fmtNumber, fmtBlockTime, fmtDay, fmtDayLong, fmtRange, fmtWeekday, niceTicks, timeTicks, isoDay } from './format.js';
 import { injectStyles } from './styles.js';
 import { toCSV, download, svgToPNG } from './export.js';
+import { monotonePath, monotoneBack, linearPath, linearBack } from './curves.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const { MIN, DAY } = time;
@@ -42,7 +43,9 @@ const DEFAULTS = {
   yMax: null,
   yLock: false, // true → y axis fixed to the highest value in the whole loaded range (trend view)
   yLockButton: true, // show the "Lock Y" toggle in the chart
-  curve: 'linear', // 'linear' | 'step'
+  curve: null, // 'linear' | 'smooth' | 'step'  (null → the theme's choice; Harmony draws 'smooth')
+  fill: null, // 'solid' | 'gradient'  (null → theme)
+  glow: null, // glowing top edge on each area (null → theme)
   initialRange: null, // [t0, t1] to override the range mode's default window
   rangeMode: 'day', // 'day': one whole calendar day, zoom/pan locked (overview snaps to days)
   //                   'week': last `weekDays` days, free zoom + pan
@@ -271,6 +274,11 @@ export class EnergyFlowChart {
     return [...set].sort((a, b) => a - b);
   }
   colors() { return { ...this.colorMap }; }
+  /** Drawing style: explicit option, else the theme's `chart` hint, else the classic look. */
+  _style(k) {
+    const fallback = { curve: 'linear', fill: 'solid', glow: false, demandDash: null };
+    return this.opts[k] ?? this.theme?.chart?.[k] ?? fallback[k];
+  }
   getVisibleSpan() { const [t0, t1] = this.store.get().range; return indexSpan(this.data.t, t0, t1); }
   aggregate() { const [i0, i1] = this.getVisibleSpan(); return aggregator(this.data, i0, i1); }
 
@@ -489,7 +497,7 @@ export class EnergyFlowChart {
     this.bandSum = h('div', { class: 'efc-band-sum' }, this.bandEl);
 
     this.plotEl = h('div', { class: 'efc-plot' }, el);
-    this.svg = s('svg', { role: 'img', 'font-family': 'system-ui, -apple-system, Segoe UI, sans-serif' }, this.plotEl);
+    this.svg = s('svg', { role: 'img', style: 'font-family: var(--efc-font, system-ui, -apple-system, "Segoe UI", sans-serif)' }, this.plotEl);
     this.srEl = h('div', { class: 'efc-sr', 'aria-live': 'polite' }, this.plotEl);
 
     const g = (cls, parent = this.svg) => s('g', { class: cls }, parent);
@@ -690,7 +698,11 @@ export class EnergyFlowChart {
     this.defs.replaceChildren();
     const { m, pw, ph } = this.dim;
     const clip = s('clipPath', { id: `efc-clip-${this._uid}` }, this.defs);
-    s('rect', { x: m.left, y: m.top - 1, width: pw, height: ph + 1 }, clip);
+    s('rect', { x: m.left, y: m.top - 12, width: pw, height: ph + 13 }, clip);
+    if (this._style('glow')) {
+      const fl = s('filter', { id: `efc-glow-${this._uid}`, x: '-5%', y: '-40%', width: '110%', height: '180%' }, this.defs);
+      s('feGaussianBlur', { stdDeviation: 4 }, fl);
+    }
     for (const ser of this.series) {
       if (ser.pattern !== 'hatch') continue;
       const c = this.colorMap[ser.key];
@@ -761,7 +773,7 @@ export class EnergyFlowChart {
     for (let k = 0; k < arr.length; k++) {
       const t = tArr[j0 + k];
       const yy = this.y(arr[k]);
-      if (this.opts.curve === 'step') {
+      if (this._style('curve') === 'step') {
         pts.push([this.x(t - stepMs), yy], [this.x(t), yy]);
       } else pts.push([this.x(t), yy]);
     }
@@ -780,26 +792,69 @@ export class EnergyFlowChart {
     this.areaEls = {};
     this.lineEls = {};
 
+    const curve = this._style('curve');
+    const smooth = curve === 'smooth';
+    const gradient = this._style('fill') === 'gradient';
+    const glow = this._style('glow');
+    const fwd = smooth ? monotonePath : linearPath;
+    const back = smooth ? monotoneBack : linearBack;
+    const { m, ph } = this.dim;
     for (const L of this.layers) {
       const up = this._pathPoints(L.hi, j0);
-      const dn = this._pathPoints(L.lo, j0).reverse();
+      const lo = this._pathPoints(L.lo, j0);
       if (!up.length) continue;
-      const d = `M${up.map(f).join('L')}L${dn.map(f).join('L')}Z`;
-      const fill = L.ser.pattern === 'hatch' ? `url(#efc-hatch-${this._uid}-${L.ser.key})` : this.colorMap[L.ser.key];
-      const el = s('path', { d, fill, 'fill-opacity': L.ser.opacity ?? (L.ser.stack === false ? 0.28 : 0.92), class: 'efc-area', 'data-key': L.ser.key }, this.gAreas);
+      const d = `${fwd(up)}${back(lo)}Z`;
+      const color = this.colorMap[L.ser.key];
+      const solo = L.ser.stack === false;
+      let fill = L.ser.pattern === 'hatch' ? `url(#efc-hatch-${this._uid}-${L.ser.key})` : color;
+      let opacity = L.ser.opacity ?? (solo ? 0.28 : 0.92);
+      if (gradient && L.ser.pattern !== 'hatch') {
+        // fade from the layer's highest point down to the baseline
+        const top = Math.min(...up.map((p) => p[1]));
+        const id = `efc-grad-${this._uid}-${L.ser.key}`;
+        const lg = s('linearGradient', { id, x1: 0, y1: top, x2: 0, y2: m.top + ph, gradientUnits: 'userSpaceOnUse' }, this.defs);
+        const [a0, a1] = solo ? [0.55, 0.02] : [0.86, 0.16];
+        s('stop', { offset: 0, 'stop-color': color, 'stop-opacity': a0 }, lg);
+        s('stop', { offset: 0.6, 'stop-color': color, 'stop-opacity': (a0 + a1) / 2.3 }, lg);
+        s('stop', { offset: 1, 'stop-color': color, 'stop-opacity': a1 }, lg);
+        fill = `url(#${id})`;
+        opacity = L.ser.opacity ?? 1;
+      }
+      const el = s('path', { d, fill, 'fill-opacity': opacity, class: 'efc-area', 'data-key': L.ser.key }, this.gAreas);
       this.areaEls[L.ser.key] = el;
-      // 1.5px surface-coloured edge keeps neighbouring fills visually separate.
-      const edge = s('path', { d: `M${up.map(f).join('L')}`, fill: 'none', stroke: L.ser.stack === false ? this.colorMap[L.ser.key] : this.t.surface, 'stroke-width': L.ser.stack === false ? 2 : 1.5, 'stroke-linejoin': 'round', class: 'efc-area', 'data-key': L.ser.key }, this.gEdges);
-      this.areaEls[L.ser.key + '__edge'] = edge;
+      if (!glow) {
+        // 1.5px surface-coloured edge keeps neighbouring fills visually separate.
+        const edge = s('path', { d: linearPath(up), fill: 'none', stroke: solo ? color : this.t.surface, 'stroke-width': solo ? 2 : 1.5, 'stroke-linejoin': 'round', class: 'efc-area', 'data-key': L.ser.key }, this.gEdges);
+        this.areaEls[L.ser.key + '__edge'] = edge;
+        continue;
+      }
+      // Harmony: a 2px line in the layer colour along its top, with a soft glow under it,
+      // drawn only where the layer has thickness (no colour smeared over its neighbour).
+      const runs = [];
+      let run = null;
+      for (let k = 0; k < up.length; k++) {
+        const kk = curve === 'step' ? Math.floor(k / 2) : k; // step curves emit two points per sample
+        if (L.hi[kk] - L.lo[kk] > 1e-6) { if (!run) { run = k > 0 ? [up[k - 1]] : []; } run.push(up[k]); }
+        else if (run) { run.push(up[k]); runs.push(run); run = null; }
+      }
+      if (run) runs.push(run);
+      for (const r of runs) {
+        const dd = fwd(r);
+        s('path', { d: dd, fill: 'none', stroke: color, 'stroke-width': 6, 'stroke-opacity': this.modeResolved === 'dark' ? 0.5 : 0.25, filter: `url(#efc-glow-${this._uid})`, class: 'efc-area efc-glow', 'data-key': L.ser.key }, this.gEdges);
+        const g2 = s('path', { d: dd, fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', class: 'efc-area', 'data-key': L.ser.key }, this.gEdges);
+        this.areaEls[L.ser.key + '__edge'] = g2;
+      }
     }
     for (const ser of this.lineSeries) {
       const v = (this.data.values[ser.key] || []).slice(j0, j1 + 1);
       const pts = this._pathPoints(v, j0);
       if (!pts.length) continue;
-      const d = `M${pts.map(f).join('L')}`;
+      const d = fwd(pts);
+      const themedDash = this._style('demandDash');
+      const dash = themedDash && (ser.role === 'demand' || ser.key === 'demand') ? themedDash : ser.dash || null;
       // surface halo under the line so it reads over any fill
-      s('path', { d, fill: 'none', stroke: this.t.surface, 'stroke-width': (ser.width || 2) + 3, 'stroke-opacity': 0.7, 'stroke-linejoin': 'round', class: 'efc-line', 'data-key': ser.key }, this.gLines);
-      const el = s('path', { d, fill: 'none', stroke: this.colorMap[ser.key], 'stroke-width': ser.width || 2, 'stroke-dasharray': ser.dash || null, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', class: 'efc-line', 'data-key': ser.key }, this.gLines);
+      s('path', { d, fill: 'none', stroke: this.t.surface, 'stroke-width': (ser.width || 2) + 3, 'stroke-opacity': glow ? 0.35 : 0.7, 'stroke-linejoin': 'round', class: 'efc-line', 'data-key': ser.key }, this.gLines);
+      const el = s('path', { d, fill: 'none', stroke: this.colorMap[ser.key], 'stroke-width': ser.width || 2, 'stroke-dasharray': dash, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', class: 'efc-line', 'data-key': ser.key }, this.gLines);
       this.lineEls[ser.key] = el;
     }
   }
@@ -829,7 +884,7 @@ export class EnergyFlowChart {
     const v = this._topValue(key, n);
     const xx = this.x(t);
     const yy = this.y(v);
-    const c = live.color || '#e5484d';
+    const c = live.color || this.t.live || '#e5484d';
     s('circle', { cx: xx, cy: yy, r: 5, fill: c, class: 'pulse' }, this.gNow);
     s('circle', { cx: xx, cy: yy, r: 5, fill: c, stroke: this.t.surface, 'stroke-width': 2 }, this.gNow);
   }
@@ -885,10 +940,18 @@ export class EnergyFlowChart {
       s('line', { x1: xx, x2: xx, y1: m.top, y2: m.top + ph, stroke: this.t.ink2, 'stroke-width': 1, 'stroke-opacity': 0.55 }, this.gCross);
       // time pill at the foot of the crosshair, over the axis labels
       const label = fmtBlockTime(t);
-      const pw2 = 42;
-      const px = clamp(xx - pw2 / 2, m.left, m.left + this.dim.pw - pw2);
-      s('rect', { x: px, y: m.top + ph + 5, width: pw2, height: 18, rx: 5, fill: this.t.ink }, this.gCross);
-      s('text', { x: px + pw2 / 2, y: m.top + ph + 18, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700, fill: this.t.surface, style: 'font-variant-numeric: tabular-nums' }, this.gCross).textContent = label;
+      if (this.theme.skin === 'harmony') {
+        // outlined pill, like the design system's cursor time pill
+        const pw2 = 52;
+        const px = clamp(xx - pw2 / 2, m.left, m.left + this.dim.pw - pw2);
+        s('rect', { x: px, y: m.top + ph + 4, width: pw2, height: 22, rx: 11, fill: this.t.surface, stroke: this.t.ink, 'stroke-width': 1.5 }, this.gCross);
+        s('text', { x: px + pw2 / 2, y: m.top + ph + 19, 'text-anchor': 'middle', 'font-size': 11.5, 'font-weight': 700, fill: this.t.ink, style: 'font-variant-numeric: tabular-nums' }, this.gCross).textContent = label;
+      } else {
+        const pw2 = 42;
+        const px = clamp(xx - pw2 / 2, m.left, m.left + this.dim.pw - pw2);
+        s('rect', { x: px, y: m.top + ph + 5, width: pw2, height: 18, rx: 5, fill: this.t.ink }, this.gCross);
+        s('text', { x: px + pw2 / 2, y: m.top + ph + 18, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700, fill: this.t.surface, style: 'font-variant-numeric: tabular-nums' }, this.gCross).textContent = label;
+      }
       // dots on every visible series (≥8px with a 2px surface ring)
       for (const L of this.layers) {
         const v = this.data.values[L.ser.key]?.[i] || 0;

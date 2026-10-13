@@ -1,0 +1,24 @@
+<!-- @dsCard group="Actions" height=200 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Segmented control</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+</head>
+<body class="eg-stage">
+<div class="eg-stack">
+  <div class="eg-row">
+    <div class="eg-seg" role="group" aria-label="Period"><button aria-pressed="true"><span data-icon="calendar" data-size="15"></span>Day view</button><button aria-pressed="false"><span class="eg-chip eg-chip--mono" style="height:20px;padding:0 6px">MTD</span>Month to date</button></div>
+    <div class="eg-seg eg-seg--sm" role="group" aria-label="Range"><button aria-pressed="true">1 day</button><button aria-pressed="false">7 days</button></div>
+    <div class="eg-seg eg-seg--sm" role="group" aria-label="View"><button aria-pressed="false">Timeline</button><button aria-pressed="true">ToD</button></div>
+  </div>
+  <div class="eg-seg eg-seg--glass" role="group" aria-label="Savings view" style="justify-self:start">
+    <button aria-pressed="true"><span data-icon="bars" data-size="15"></span>Daily breakdown</button><button aria-pressed="false"><span data-icon="layers" data-size="15"></span>96-slot profile</button><button aria-pressed="false"><span data-icon="download" data-size="15"></span>Reports and exports</button>
+  </div>
+</div>
+<script>
+document.querySelectorAll('.eg-seg').forEach(function(g){g.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;g.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});});});
+</script>
+</body>
+</html>
