@@ -1,0 +1,22 @@
+<!-- @dsCard group="Charts" height=330 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Slot heatmap</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+.hm-scale { width: 120px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--surface-2), var(--series-iex)); }
+</style>
+</head>
+<body class="eg-stage">
+<section class="eg-glass" style="padding:24px">
+  <div class="eg-card__head"><div><h3 class="eg-card__title">96-slot profile</h3><p class="eg-card__sub">Cleared kW per 15-minute block · last 7 days</p></div>
+  <div class="eg-legend"><span>0 kW</span><span class="hm-scale"></span><span>2,800 kW</span></div></div>
+  <div class="eg-chart" id="hm"></div>
+</section>
+<script>
+ErgOS.heatmap(document.getElementById('hm'));
+</script>
+</body>
+</html>

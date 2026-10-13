@@ -1,0 +1,28 @@
+<!-- @dsCard group="Charts" height=280 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mix ring</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+.mr-row { display:grid; grid-template-columns: 14px 1fr auto; align-items:center; gap:10px; font-size:14px; } .mr-row b { font-weight:600; }
+</style>
+</head>
+<body class="eg-stage">
+<div class="eg-row" style="gap:32px">
+  <div class="eg-ringwrap"><div id="ring"></div><div class="eg-ringwrap__center"><b>22%</b><span>renewable</span></div></div>
+  <div class="eg-stack" style="gap:12px;min-width:220px">
+    <div class="mr-row"><span class="eg-swatch" data-series="grid"></span><span>Grid</span><b>22.65 MWh</b></div>
+    <div class="mr-row"><span class="eg-swatch" data-series="iex"></span><span>Power exchange</span><b>16.83 MWh</b></div>
+    <div class="mr-row"><span class="eg-swatch" data-series="wind"></span><span>Wind</span><b>4.57 MWh</b></div>
+    <div class="mr-row"><span class="eg-swatch" data-series="hydro"></span><span>Hydro</span><b>3.39 MWh</b></div>
+    <div class="mr-row"><span class="eg-swatch" data-series="solar"></span><span>Solar</span><b>3.11 MWh</b></div>
+    <hr class="eg-divider"><div class="mr-row"><span></span><span class="eg-muted">Total demand</span><b>50.55 MWh</b></div>
+  </div>
+</div>
+<script>
+ErgOS.ring(document.getElementById('ring'), {parts:[{key:'hydro',value:3.39},{key:'wind',value:4.57},{key:'solar',value:3.11},{key:'iex',value:16.83},{key:'grid',value:22.65}], size:176, stroke:14});
+</script>
+</body>
+</html>

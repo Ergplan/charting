@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="../harmony.css">
+<script src="../../dist/energy-flow-chart.min.js"></script>
+<script src="../harmony.js"></script>
+<meta charset="utf-8">
+<title>Chip</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+</head>
+<body class="eg-stage">
+<div class="eg-stack">
+  <div class="eg-row">
+    <span class="eg-chip eg-chip--accent"><span class="eg-dot eg-dot--live"></span>Live updates</span>
+    <span class="eg-chip eg-chip--accent">TODAY</span>
+    <span class="eg-chip"><span class="eg-dot eg-dot--off"></span>Auto: OFF</span>
+    <span class="eg-chip eg-chip--mono">N2UP0AEV0003</span>
+    <span class="eg-chip eg-chip--accent"><span data-icon="arrow-up" data-size="14"></span>26.19% saved</span>
+    <span class="eg-chip eg-chip--negative">Bid rejected</span>
+    <span class="eg-chip eg-chip--warning">Meter data delayed</span>
+  </div>
+  <div class="eg-row">
+    <span class="eg-chip eg-chip--time">09:00 AM</span>
+    <span class="eg-chip eg-chip--lg"><span class="eg-dot eg-dot--live"></span>Block 89 · 22:15</span>
+    <span class="eg-chip eg-chip--solid">8 units</span>
+    <span class="eg-avatars"><span class="eg-avatar">RK</span><span class="eg-avatar">AS</span><span class="eg-avatar">+3</span></span>
+  </div>
+</div>
+<script>if (window.top === window) { var t = document.createElement("button"); t.className = "eg-btn eg-btn--sm"; t.textContent = "Switch theme"; t.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:9"; t.onclick = function () { var r = document.documentElement; r.setAttribute("data-theme", r.getAttribute("data-theme") === "light" ? "dark" : "light"); }; document.body.appendChild(t); }</script>
+</body>
+</html>

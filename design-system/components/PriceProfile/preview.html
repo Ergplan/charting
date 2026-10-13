@@ -1,0 +1,16 @@
+<!-- @dsCard group="Charts" height=560 subtitle="Clearing prices vs the state's marginal cost" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Price profile — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+</head>
+<body class="eg-stage">
+<div id="pp"></div>
+<script>
+  var data = EnergyFlow.samplePriceYear();
+  var pp = new EnergyFlow.PriceProfile(document.getElementById('pp'), { data: data, day: '2026-07-04', theme: 'harmony', height: 400 });
+</script>
+</body>
+</html>

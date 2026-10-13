@@ -1,0 +1,19 @@
+<!-- @dsCard group="Charts" height=440 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Savings chart</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+</head>
+<body class="eg-stage">
+<section class="eg-glass" style="padding:24px">
+  <div class="eg-card__head"><div><h3 class="eg-card__title">Daily net savings and volume</h3><p class="eg-card__sub">HALDIRAM C1 · 12 trade days · 1–12 Oct 2026</p></div>
+  <div class="eg-legend"><span><span class="eg-swatch" data-series="iex"></span>Net savings (₹)</span><span><span class="eg-swatch" data-series="grid" style="height:3px;width:14px"></span>Volume cleared (kWh)</span></div></div>
+  <div class="eg-chart" id="sav"></div>
+</section>
+<script>
+ErgOS.savingsChart(document.getElementById('sav'));
+</script>
+</body>
+</html>

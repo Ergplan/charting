@@ -48,11 +48,26 @@ export interface TodColumn extends TodZone {
 export interface ThemeVariant {
   surface: string; page: string; ink: string; ink2: string; muted: string; grid: string; axis: string;
   border: string; tooltip: string; band: string; accent: string;
+  /** Harmony family: positive / negative text and the live dot. */
+  good?: string; bad?: string; live?: string;
   roles: Record<string, string>;
   palette: string[];
 }
-export interface Theme { name: string; label?: string; light: ThemeVariant; dark: ThemeVariant }
-export type ThemeInput = { name: string; label?: string; light?: Partial<ThemeVariant>; dark?: Partial<ThemeVariant> };
+export interface Theme {
+  name: string; label?: string; light: ThemeVariant; dark: ThemeVariant;
+  /** 'harmony' switches the component CSS to the ergOS Harmony skin. */
+  skin?: 'harmony';
+  /** CSS font stack written to --efc-font. */
+  font?: string;
+  /** Drawing hints used when the chart options leave them null. */
+  chart?: { curve?: 'linear' | 'smooth' | 'step'; fill?: 'solid' | 'gradient'; glow?: boolean; demandDash?: string; heatmap?: ColormapName };
+  /** Base theme to inherit chrome, roles, skin and font from (registerTheme only). */
+  extends?: string;
+}
+
+/** Built-in themes. The ergOS Harmony family: harmony (default for ergOS), volt, verdant, aurora. */
+export type ThemeName = 'energy' | 'sunset' | 'contrast' | 'harmony' | 'volt' | 'verdant' | 'aurora';
+export type ThemeInput = { name: string; label?: string; extends?: string; skin?: 'harmony'; font?: string; chart?: Theme['chart']; light?: Partial<ThemeVariant>; dark?: Partial<ThemeVariant> };
 
 export interface StoreState {
   range: [number, number] | null;
@@ -87,7 +102,12 @@ export interface ChartOptions {
   unit?: string;
   yMin?: number;
   yMax?: number | null;
-  curve?: 'linear' | 'step';
+  /** null → the theme's choice (Harmony: 'smooth'). 'smooth' is monotone cubic: never overshoots the data. */
+  curve?: 'linear' | 'smooth' | 'step' | null;
+  /** Area fill. null → theme (Harmony: 'gradient', fading from each layer's top edge). */
+  fill?: 'solid' | 'gradient' | null;
+  /** Glowing 2px line on each layer's top edge. null → theme (Harmony: true). */
+  glow?: boolean | null;
   /** Override the range mode's default window. */
   initialRange?: [number, number];
   minSpanMinutes?: number;
@@ -300,3 +320,112 @@ export declare const format: {
   fmtBlockTime(t: number): string;
   isoDay(t: number): string;
 };
+
+// ------------------------------------------------------------------ ergOS Harmony: prices, heatmap, profile
+
+export type PriceMarket = 'dam' | 'rtm' | 'gdam' | 'marginalVC' | 'spareVC' | (string & {});
+export type ColormapName = 'landscape' | 'harmony' | 'volt' | 'verdant' | 'landscapeLight';
+
+/** Day × block price matrix (₹/kWh). markets[key][day * blocks + block], NaN when missing. */
+export interface PriceMatrix {
+  days: number[];
+  blocks: number;
+  blockMinutes: number;
+  unit: string;
+  markets: Record<PriceMarket, number[]>;
+}
+export interface TradeWindow { type: 'buy' | 'sell'; from: number; to: number }
+
+export declare const PRICE_MARKETS: PriceMarket[];
+export declare const DEFAULT_PRICE_COLUMNS: Record<string, string>;
+export declare function fromPriceRows(rows: Record<string, unknown>[], opts?: { columns?: Record<string, string>; dateKey?: string; blockKey?: string; blockMinutes?: number; unit?: 'auto' | 'kWh' | 'MWh' }): PriceMatrix;
+export declare function priceAt(m: PriceMatrix, market: PriceMarket, day: number, block: number): number;
+export declare function dayPrices(m: PriceMatrix, market: PriceMarket, day: number): number[];
+export declare function dayIndexOf(m: PriceMatrix, date: number | string | Date): number;
+export declare function dayStats(m: PriceMatrix, market: PriceMarket, day: number): { min: number; max: number; mean: number };
+/** Buy when the market clears below the marginal state VC; else sell when above the cheapest spare VC. */
+export declare function tradeWindows(m: PriceMatrix, day: number, opts?: { market?: PriceMarket; marginal?: PriceMarket; spare?: PriceMarket; vcCap?: number }): TradeWindow[];
+export declare const colormaps: Record<ColormapName, string[]>;
+export declare function colorAt(map: ColormapName | string[], t: number): [number, number, number] | null;
+export declare function colormapCSS(map: ColormapName | string[], direction?: string): string;
+/** ILLUSTRATIVE seeded year of prices for demos and tests. */
+export declare function samplePriceYear(opts?: { start?: string; days?: number; seed?: number; blocks?: number }): PriceMatrix;
+
+export interface PriceLandscapeOptions {
+  data: PriceMatrix;
+  market?: PriceMarket;
+  domain?: [number, number];
+  colormap?: ColormapName | string[] | null;
+  theme?: ThemeName | string | Theme;
+  mode?: 'auto' | 'light' | 'dark';
+  height?: number;
+  title?: string | null;
+  subtitle?: string | null;
+  hint?: string | null;
+  legend?: boolean;
+  hourStep?: number;
+  selectedDay?: number;
+  store?: Store;
+  onSelect?: (day: number, block: number, info: { date: number; price: number }) => void;
+  onHover?: (cell: { day: number; block: number; date: number; price: number } | null) => void;
+  margin?: Partial<{ top: number; right: number; bottom: number; left: number }>;
+}
+export declare class PriceLandscape {
+  constructor(el: HTMLElement, options: PriceLandscapeOptions);
+  readonly selectedDay: number | null;
+  select(day: number): void;
+  setData(data: PriceMatrix): void;
+  setMarket(market: PriceMarket): void;
+  setTheme(theme: ThemeName | string | Theme, mode?: 'auto' | 'light' | 'dark'): void;
+  render(): void;
+  destroy(): void;
+}
+export declare function createPriceLandscape(el: HTMLElement, options: PriceLandscapeOptions): PriceLandscape;
+
+export interface ProfileSeries { key: PriceMarket; label: string; width?: number; dash?: string; glow?: boolean; color?: string | { light: string; dark: string } }
+export interface PriceProfileOptions {
+  data: PriceMatrix;
+  /** Day index, epoch-ms or 'YYYY-MM-DD'. Default: the last day. */
+  day?: number | string | Date;
+  series?: ProfileSeries[];
+  windows?: 'auto' | false | TradeWindow[] | ((m: PriceMatrix, day: number) => TradeWindow[]);
+  windowRule?: Parameters<typeof tradeWindows>[2];
+  hidden?: PriceMarket[];
+  theme?: ThemeName | string | Theme;
+  mode?: 'auto' | 'light' | 'dark';
+  height?: number;
+  title?: string | null;
+  eyebrow?: boolean;
+  stepper?: boolean;
+  yMax?: number | null;
+  unit?: string;
+  store?: Store;
+  onDayChange?: (day: number, date: number) => void;
+  onHover?: (r: { block: number; values: Record<string, number> } | null) => void;
+  margin?: Partial<{ top: number; right: number; bottom: number; left: number }>;
+}
+export declare const DEFAULT_PROFILE_SERIES: ProfileSeries[];
+export declare class PriceProfile {
+  constructor(el: HTMLElement, options: PriceProfileOptions);
+  readonly day: number;
+  setDay(day: number | string | Date): void;
+  step(n: number): void;
+  toggle(key: PriceMarket): void;
+  windows(): TradeWindow[];
+  setData(data: PriceMatrix): void;
+  setTheme(theme: ThemeName | string | Theme, mode?: 'auto' | 'light' | 'dark'): void;
+  render(): void;
+  destroy(): void;
+}
+export declare function createPriceProfile(el: HTMLElement, options: PriceProfileOptions): PriceProfile;
+/** Landscape + profile on one store: clicking a day shows its profile. */
+export declare function createPriceExplorer(opts: {
+  landscape: string | HTMLElement; profile: string | HTMLElement; data: PriceMatrix; day?: number | string;
+  theme?: ThemeName | string; mode?: 'auto' | 'light' | 'dark';
+  landscapeOptions?: Partial<PriceLandscapeOptions>; profileOptions?: Partial<PriceProfileOptions>;
+}): { landscape: PriceLandscape; profile: PriceProfile; store: Store; destroy(): void };
+
+export declare function monotoneSegments(pts: [number, number][]): [number, number][][];
+export declare function monotonePath(pts: [number, number][]): string;
+export declare function monotoneBack(pts: [number, number][]): string;
+export declare function stepPath(pts: [number, number][], xEnd?: number): string;

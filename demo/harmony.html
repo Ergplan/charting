@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ergOS Harmony demo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../design-system/tokens/tokens.css">
+<link rel="stylesheet" href="../design-system/harmony.css">
+<style>
+  body.eg-stage { padding: 32px 24px 80px; }
+  main { max-width: 1320px; margin: 0 auto; display: grid; gap: 24px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  .panel { padding: 22px; }
+  #cards { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .note { color: var(--ink-muted); font-size: 13px; margin: 0; }
+</style>
+</head>
+<body class="eg-stage">
+<main>
+  <header class="bar">
+    <div>
+      <h1 class="eg-h1">erg<em>OS</em> Harmony</h1>
+      <p class="note">The production charts from this repo in the Harmony theme, beside the design-system components. Sample data only.</p>
+    </div>
+    <div class="eg-row">
+      <div class="eg-seg eg-seg--glass" role="group" aria-label="Colour scheme" id="scheme">
+        <button aria-pressed="true" data-v="harmony">Harmony</button><button aria-pressed="false" data-v="volt">Volt</button><button aria-pressed="false" data-v="verdant">Verdant</button><button aria-pressed="false" data-v="aurora">Aurora</button>
+      </div>
+      <div class="eg-seg eg-seg--glass" role="group" aria-label="Theme" id="mode">
+        <button aria-pressed="true" data-v="dark">Dark</button><button aria-pressed="false" data-v="light">Light</button>
+      </div>
+    </div>
+  </header>
+
+  <section id="cards" aria-label="Key figures"></section>
+  <section class="eg-glass panel"><div id="chart"></div></section>
+
+  <div id="landscape"></div>
+  <div id="profile"></div>
+
+  <div class="eg-voice" data-state="idle" data-auto="demo">
+    <span class="eg-voice__orb" aria-hidden="true"><i></i></span>
+    <div class="eg-voice__body"><div class="eg-voice__text" aria-live="polite">Ask anything about today’s blocks</div><div class="eg-voice__wave" aria-hidden="true"><canvas></canvas></div></div>
+    <span class="eg-voice__timer">0:00</span>
+    <button class="eg-voice__mic" data-voice="mic" aria-label="Start talking"><span class="i-mic" data-icon="mic" data-size="20"></span><span class="i-stop" data-icon="stop" data-size="18"></span><span class="i-spin"></span></button>
+  </div>
+</main>
+
+<script src="../design-system/harmony.js"></script>
+<script src="./data.js"></script>
+<script type="module">
+  import { mount, samplePriceYear, createPriceExplorer, dayIndexOf } from '../src/index.js';
+
+  const board = await mount('#chart', { data: window.ENERGY_DATA, cards: '#cards', theme: 'harmony', mode: 'auto', height: 420 });
+  const prices = samplePriceYear();
+  const explorer = createPriceExplorer({ landscape: '#landscape', profile: '#profile', data: prices, day: dayIndexOf(prices, '2026-07-04'), mode: 'auto' });
+
+  const pick = (group, fn) => document.getElementById(group).addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    e.currentTarget.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    fn(b.dataset.v);
+  });
+  pick('scheme', (v) => { board.chart.setTheme(v); explorer.landscape.setTheme(v); explorer.profile.setTheme(v); });
+  // mode 'auto' follows <html data-theme>, so the charts switch with the page
+  pick('mode', (v) => document.documentElement.setAttribute('data-theme', v));
+</script>
+</body>
+</html>

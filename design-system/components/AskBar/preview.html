@@ -1,0 +1,26 @@
+<!-- @dsCard group="Inputs" height=230 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ask bar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+</head>
+<body class="eg-stage">
+<div style="max-width:560px" class="eg-stack">
+  <form class="eg-ask" onsubmit="event.preventDefault()">
+    <label for="ask" class="eg-muted" style="position:absolute;left:-9999px">Ask ergOS</label>
+    <textarea id="ask" class="eg-ask__input" rows="1" placeholder="Ask ergOS about today’s blocks"></textarea>
+    <div class="eg-ask__bar">
+      <button type="button" class="eg-icon-btn eg-icon-btn--xs" aria-label="Add data"><span data-icon="plus" data-size="15"></span></button>
+      <button type="button" class="eg-icon-btn eg-icon-btn--xs" aria-label="Attach file" style="background:transparent;border-color:transparent;box-shadow:none"><span data-icon="clip" data-size="15"></span></button>
+      <span class="eg-chip">HALDIRAM C1 <span data-icon="chevron-right" data-size="12"></span></span>
+      <span class="eg-spacer"></span>
+      <button type="button" class="eg-icon-btn eg-icon-btn--sm" aria-label="Talk to ergOS"><span data-icon="mic" data-size="18"></span></button>
+      <button class="eg-icon-btn eg-icon-btn--sm eg-icon-btn--solid" aria-label="Send"><span data-icon="arrow-up" data-size="18"></span></button>
+    </div>
+  </form>
+  <div class="eg-row"><span class="eg-chip">Why did demand dip at 11:00?</span><span class="eg-chip">Best blocks to buy tomorrow</span></div>
+</div>
+</body>
+</html>

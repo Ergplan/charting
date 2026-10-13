@@ -1,0 +1,66 @@
+<!-- @dsCard group="Screens" height=940 width=1000 page subtitle="Phone: onboarding and trading desk" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile screens</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+body.eg-stage { padding: 40px; display: flex; gap: 72px; justify-content: center; align-items: flex-start; }
+.phone { width: 390px; height: 844px; border-radius: 58px; padding: 12px; background: var(--charcoal); box-shadow: 0 0 0 2px var(--line-strong), var(--shadow-float); flex: none; }
+.screen { position: relative; width: 100%; height: 100%; border-radius: 47px; overflow: hidden; background-color: var(--canvas); display: flex; flex-direction: column; }
+.status { display: flex; justify-content: space-between; align-items: center; padding: 18px 30px 0; font: 600 15px/1 var(--font-sans); height: 50px; }
+.island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 120px; height: 34px; border-radius: 20px; background: var(--charcoal); }
+.sb-icons { display: flex; gap: 6px; align-items: center; }
+.sb-icons i { display:block; width: 18px; height: 10px; border-radius: 3px; border: 1.5px solid currentColor; }
+.ob { flex: 1; position: relative; padding: 0 26px 22px; display: flex; flex-direction: column; }
+.ob-art { position: relative; height: 330px; margin: 0 -26px; }
+.ob-art svg.links { position: absolute; inset: 0; }
+.ob-art svg.links path { fill: none; stroke: var(--line-strong); stroke-width: 1.2; }
+.node { position: absolute; display: grid; gap: 2px; padding: 10px 20px 10px 12px; border-radius: 16px; background: var(--white); color: var(--charcoal); font-size: 11px; line-height: 13px; box-shadow: var(--shadow-float); }
+.node b { font-size: 13px; }
+.node .tag { position: absolute; right: -12px; bottom: -12px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 700 11px/1 var(--font-sans); background: var(--white); color: var(--charcoal); box-shadow: 0 0 0 3px var(--canvas); }
+.node .tag.g { background: var(--harmony); color: var(--on-accent); }
+.mini-folder { position: absolute; left: 50%; top: 168px; transform: translateX(-50%); width: 132px; height: 104px; }
+.mini-folder .bk { position: absolute; inset: 0 0 6px; border-radius: 16px; background: linear-gradient(180deg, var(--folder-deep), var(--folder)); }
+.mini-folder .pp { position: absolute; left: 16px; right: 16px; top: -14px; height: 70px; border-radius: 8px; background: var(--white); box-shadow: 0 6px 16px rgba(0,0,0,.25); }
+.mini-folder .pp::before { content: ""; position: absolute; left: 12px; right: 12px; top: 12px; height: 34px; background: repeating-linear-gradient(to bottom, var(--line-strong) 0 3px, transparent 3px 9px); opacity: .6; }
+.mini-folder .fr { position: absolute; left: 0; right: 0; bottom: 0; height: 62px; border-radius: 6px 30px 16px 16px; background: linear-gradient(170deg, color-mix(in srgb, var(--harmony) 80%, transparent), color-mix(in srgb, var(--folder-hi) 92%, transparent)); backdrop-filter: blur(6px); box-shadow: 0 0 40px var(--glow); }
+.ob h1 { margin: 0; font: 300 38px/42px var(--font-display); letter-spacing: -0.015em; }
+.ob h1 em { font-style: normal; font-weight: 500; color: var(--accent); }
+.ob p { margin: 8px 0 22px; color: var(--ink-muted); font-size: 14px; }
+.dockwrap { display: flex; justify-content: center; margin-top: 14px; }
+.dockwrap .eg-dock a { padding: 0 14px; height: 42px; font-size: 13px; }
+.top-actions { display: flex; justify-content: space-between; padding: 14px 20px 0; }
+.top-actions div { display: flex; gap: 10px; }
+.ph-folder { flex: 1; margin: 22px 8px 0; position: relative; }
+.ph-folder .eg-folder { height: 100%; padding-top: 54px; }
+.ph-folder .eg-folder__front { height: 100%; padding: 20px 20px 24px; --folder-dip: 46px; --folder-tab: 0.46; border-radius: 34px 34px 0 0; }
+.ph-folder .eg-folder__back { bottom: 0; border-radius: 34px 34px 0 0; }
+.ph-folder .eg-folder__sheets { width: 66%; right: 2%; top: 6px; }
+.ph-folder .eg-sheet { height: 120px; padding: 10px 11px; font-size: 9px; line-height: 11px; border-radius: 14px; }
+.ph-folder .eg-sheet b { font-size: 10px; line-height: 12px; }
+.ph-folder .eg-sheet__kicker { font-size: 10px; margin-bottom: 6px; }
+.ph-folder .eg-folder__title { font-size: 22px; line-height: 28px; }
+.ph-folder .eg-folder__sub { font-size: 13px; }
+.ph-folder .eg-track__labels { font-size: 13px; }
+.ph-folder .eg-timeline { padding-left: 52px; gap: 18px; }
+.ph-folder .eg-timeline::before { left: 13px; top: 44px; }
+.ph-folder .eg-tl-item__icon { left: -52px; width: 40px; height: 40px; }
+.ph-folder .eg-tl-item__title { font-size: 15px; line-height: 20px; }
+.ph-folder .eg-tl-item__meta { font-size: 12px; }
+.ph-folder .eg-tl-card { padding: 14px; gap: 12px; border-radius: 22px; }
+.ph-folder .eg-tl-card__app { width: 40px; height: 40px; }
+.ph-folder .eg-tl-card__title { font-size: 14px; line-height: 18px; }
+.ph-folder .eg-tl-card__who { font-size: 12px; }
+.ph-folder .eg-thumb { width: 50px; height: 62px; padding: 6px 5px 5px; font-size: 8px; }
+.ph-folder .eg-chip--time { height: 28px; padding: 0 10px; font-size: 11px; }
+</style>
+</head>
+<body class="eg-stage">
+<div class="phone"><div class="screen eg-dots"><div class="status"><span>9:41</span><span class="sb-icons"><span data-icon="bars" data-size="16"></span><span data-icon="antenna" data-size="16"></span><i></i></span></div><span class="island"></span><div class="ob"><div class="ob-art"><svg class="links" viewBox="0 0 390 330" aria-hidden="true"><path d="M110 112 V250 Q110 262 122 262 H150"/><path d="M300 150 V200 Q300 212 288 212 H264"/><path d="M40 205 Q40 300 120 300 H172 V275"/></svg><div class="node" style="left:70px;top:44px">Grid<b>22.65 MWh</b><span class="tag"><span data-icon="grid" data-size="14"></span></span></div><div class="node" style="left:248px;top:86px">Solar<b>3.11 MWh</b><span class="tag"><span data-icon="solar" data-size="14"></span></span></div><div class="node" style="left:14px;top:150px">IEX<b>17.66 MWh</b><span class="tag g"><span data-icon="exchange" data-size="14"></span></span></div><div class="mini-folder"><div class="bk"></div><div class="pp"></div><div class="fr"></div></div></div><div class="eg-voice eg-voice--compact" data-state="listening" data-auto="static"><span class="eg-voice__orb" aria-hidden="true"><i></i></span><div class="eg-voice__body"><div class="eg-voice__text" aria-live="polite">Plan the first bid for C1</div><div class="eg-voice__wave" aria-hidden="true"><canvas></canvas></div></div><span class="eg-voice__timer">0:00</span><button class="eg-icon-btn eg-icon-btn--sm" data-voice="keyboard" aria-label="Type instead" style="background:transparent;border-color:transparent;box-shadow:none"><span data-icon="keyboard" data-size="18"></span></button><button class="eg-voice__mic" data-voice="mic" aria-label="Start talking"><span class="i-mic"><span data-icon="mic" data-size="20"></span></span><span class="i-stop"><span data-icon="stop" data-size="18"></span></span><span class="i-spin"></span></button></div><div style="margin-top:auto"><h1>Ready to take <em>control</em> of tomorrow?</h1><p>Plan T+1 bids for all 8 plants in one place.</p><button class="eg-btn eg-btn--primary eg-btn--lg eg-btn--block">Set up auto-trading</button><div class="dockwrap"><nav class="eg-dock" aria-label="Primary"><a href="#" aria-current="page"><span data-icon="factory" data-size="17"></span>Plants</a><a href="#"><span data-icon="apps" data-size="17"></span>Desk</a><a href="#"><span data-icon="bolt" data-size="17"></span>Launch</a></nav></div></div></div></div></div><div class="phone"><div class="screen"><div class="status"><span>9:41</span><span class="sb-icons"><span data-icon="bars" data-size="16"></span><span data-icon="antenna" data-size="16"></span><i></i></span></div><span class="island"></span><div class="top-actions"><button class="eg-icon-btn" aria-label="Back"><span data-icon="arrow-left" data-size="20"></span></button><div><button class="eg-icon-btn" aria-label="Comment"><span data-icon="message" data-size="19"></span></button><button class="eg-icon-btn" aria-label="Report"><span data-icon="file" data-size="19"></span></button><button class="eg-icon-btn" aria-label="Download"><span data-icon="download" data-size="19"></span></button></div></div><div class="ph-folder"><div class="eg-folder"><div class="eg-folder__back"></div><div class="eg-folder__sheets" aria-hidden="true"><div class="eg-sheet"><div class="eg-sheet__kicker">Incident</div>Block<b>44–45</b></div><div class="eg-sheet"><div class="eg-sheet__kicker">Schedule</div>Revision<b>R2</b></div><div class="eg-sheet"><div class="eg-sheet__kicker">DAM bid<span class="eg-sheet__q">?</span></div>Cleared<b>2,716 kW</b><div style="margin-top:6px">Price</div><b>₹5.33</b></div></div><div class="eg-folder__front eg-on-folder"><div class="eg-folder__head"><h2 class="eg-folder__title">Trading desk</h2><p class="eg-folder__sub">Recent activity</p></div><div class="eg-track" style="--value:62%;margin:18px 0 22px"><div class="eg-track__labels"><span>T+1 bid · C1</span><span>IEX clearing</span></div><div class="eg-track__rail"><div class="eg-track__fill"></div><div class="eg-track__marker"></div></div></div><div class="eg-timeline"><div class="eg-tl-item"><span class="eg-tl-item__icon"><span data-icon="file" data-size="20"></span></span><div><h4 class="eg-tl-item__title">DAM bid cleared for 13 Oct</h4><p class="eg-tl-item__meta">Blocks 36–61 · 2,716 kW · placed by ops desk</p></div><div class="eg-tl-card"><span class="eg-tl-card__app"><span data-icon="trend" data-size="22"></span></span><div><h5 class="eg-tl-card__title">Cleared at IEX · ₹5.33 / kWh</h5><div class="eg-tl-card__who"><span class="eg-avatars"><span class="eg-avatar">RK</span><span class="eg-avatar">AS</span></span>Trading desk</div></div><div class="eg-tl-card__body"><div class="eg-thumbs"><div class="eg-thumb"><span>B36–44</span><div class="eg-thumb__bars" data-bars="20,24,27,27,27,27,27,27,27" data-series="iex"></div></div><div class="eg-thumb"><span>B45–53</span><div class="eg-thumb__bars" data-bars="27,27,26,27,27,27,27,27,27" data-series="iex"></div></div><div class="eg-thumb"><span>B54–61</span><div class="eg-thumb__bars" data-bars="27,27,27,27,27,26,27,20" data-series="iex"></div></div></div><span class="eg-chip eg-chip--time">08:45 AM</span></div></div></div><div class="eg-tl-item"><span class="eg-tl-item__icon"><span data-icon="gauge" data-size="20"></span></span><div><h4 class="eg-tl-item__title">Demand dipped below the bid</h4><p class="eg-tl-item__meta">Blocks 44–45 · 2,120 kW against 2,716 kW cleared</p></div><div class="eg-tl-card"><span class="eg-tl-card__app"><span data-icon="bolt" data-size="22"></span></span><div><h5 class="eg-tl-card__title">596 kW surplus for 30 minutes</h5><div class="eg-tl-card__who"><span class="eg-chip eg-chip--warning">Deviation</span>Lunch break shutdown</div></div><div class="eg-tl-card__body"><div class="eg-thumbs"><div class="eg-thumb"><span>B44</span><div class="eg-thumb__bars" data-bars="32,30,22,21,24,31,37,38" data-series="iex"></div></div><div class="eg-thumb"><span>B45</span><div class="eg-thumb__bars" data-bars="30,24,21,21,26,33,37,37" data-series="iex"></div></div></div><span class="eg-chip eg-chip--time">11:00 AM</span></div></div></div></div></div></div></div></div></div>
+<script>
+document.querySelectorAll('[data-bars]').forEach(function(el){ErgOS.miniBars(el, el.getAttribute('data-bars').split(',').map(Number), 'iex');});
+</script>
+</body>
+</html>

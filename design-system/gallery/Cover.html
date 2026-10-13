@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="../harmony.css">
+<script src="../../dist/energy-flow-chart.min.js"></script>
+<script src="../harmony.js"></script>
+<meta charset="utf-8">
+<title>ergOS Harmony</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&display=swap">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--canvas); color: var(--ink); font-family: var(--font-display); overflow: hidden; }
+  .cover { position: relative; width: 960px; height: 288px; overflow: hidden; }
+  .art { position: absolute; top: 0; left: 480px; width: 480px; height: 288px; overflow: hidden; }
+  .art svg { display: block; width: 480px; height: 288px; }
+  .deep { fill: var(--folder-deep); }
+  .front { fill: var(--folder); }
+  .hi { fill: var(--folder-hi); }
+  .harmony { fill: var(--harmony); }
+  .ink { fill: var(--ink); }
+  .rail { stroke: var(--on-folder); stroke-width: 2; stroke-linecap: round; }
+  .dot { fill: var(--on-folder); opacity: .6; }
+  .mark { fill: var(--on-folder); }
+  .tick { stroke: var(--folder-deep); stroke-width: 2; stroke-linecap: round; }
+  .words { position: absolute; left: 32px; bottom: 32px; max-width: 440px; }
+  .name { margin: 0; font-size: 96px; line-height: .92; font-weight: 300; letter-spacing: -0.03em; color: var(--ink); }
+  .name b { font-weight: 600; }
+  .tag { margin: 16px 0 0 4px; font-size: 14px; line-height: 20px; color: var(--ink-muted); font-family: var(--font-sans); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      folder-deep back 320x232 (radius-xl) · folder front with the tab shoulder, bleeding off the bottom · harmony 136x176 bleeding off the top-right (radius-lg) · ink 96x88 (radius-md) · folder-hi tab light — about 40% of 960x288
+  arrangement one tall folder slab with satellites: back, front and tab stacked like the folder card, harmony and ink stepping off to the right
+  pattern     the progress track (solid elapsed, dotted remaining, triangle at now) across the front, and the timeline's ruler ticks down the harmony block — the system's own literal motif
+  scales      sides in space-2 multiples; dot pitch 8 (space-2); corners radius-xl 36, radius-lg 28, radius-md 20
+-->
+<rect class="deep" x="16" y="24" width="320" height="232" rx="36"/>
+<rect class="harmony" x="352" y="-28" width="136" height="176" rx="28"/>
+<rect class="ink" x="352" y="168" width="96" height="88" rx="20"/>
+<path class="front" d="M16,112 Q16,76 52,76 L128,76 C168,76 168,124 208,124 L300,124 Q336,124 336,160 L336,320 L16,320 Z"/>
+<path class="hi" d="M16,112 Q16,76 52,76 L128,76 C150,76 160,92 168,104 L16,176 Z" opacity=".55"/>
+<line class="rail" x1="48" y1="216" x2="216" y2="216"/>
+<path class="mark" d="M208,203 L224,203 L216,216 Z"/>
+<circle class="dot" cx="232" cy="216" r="2"/><circle class="dot" cx="240" cy="216" r="2"/><circle class="dot" cx="248" cy="216" r="2"/><circle class="dot" cx="256" cy="216" r="2"/><circle class="dot" cx="264" cy="216" r="2"/><circle class="dot" cx="272" cy="216" r="2"/><circle class="dot" cx="280" cy="216" r="2"/><circle class="dot" cx="288" cy="216" r="2"/><circle class="dot" cx="296" cy="216" r="2"/><circle class="dot" cx="304" cy="216" r="2"/>
+<line class="tick" x1="376" y1="24" x2="392" y2="24"/><line class="tick" x1="376" y1="40" x2="392" y2="40"/><line class="tick" x1="376" y1="56" x2="392" y2="56"/><line class="tick" x1="376" y1="72" x2="392" y2="72"/><line class="tick" x1="376" y1="88" x2="392" y2="88"/><line class="tick" x1="376" y1="104" x2="392" y2="104"/><line class="tick" x1="376" y1="120" x2="392" y2="120"/>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">ergOS<br><b>Harmony</b></h1>
+<p class="tag">Green glass for energy trading, block by block.</p>
+</div>
+</div>
+<script>if (window.top === window) { var t = document.createElement("button"); t.className = "eg-btn eg-btn--sm"; t.textContent = "Switch theme"; t.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:9"; t.onclick = function () { var r = document.documentElement; r.setAttribute("data-theme", r.getAttribute("data-theme") === "light" ? "dark" : "light"); }; document.body.appendChild(t); }</script>
+</body>
+</html>

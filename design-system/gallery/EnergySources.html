@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="../harmony.css">
+<script src="../../dist/energy-flow-chart.min.js"></script>
+<script src="../harmony.js"></script>
+<meta charset="utf-8">
+<title>Energy sources</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+.es-icons { display:flex; flex-wrap:wrap; gap:22px; }
+.es-icon { display:grid; justify-items:center; gap:8px; font-size:12px; color:var(--ink-muted); --tone: var(--sw); }
+.es-icon .eg-source__icon { width:56px; height:56px; border-radius:18px; }
+.es-tiles { display:grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap:12px; }
+.es-pals { display:grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap:16px 24px; }
+.es-pal__name { font-size:12px; color:var(--ink-muted); margin:0 0 8px 4px; }
+</style>
+</head>
+<body class="eg-stage">
+<div class="eg-stack" style="gap:26px">
+  <div class="es-icons"><div class="es-icon" data-series="solar"><span class="eg-source__icon"><span data-icon="solar" data-size="22"></span></span><span>Solar</span></div><div class="es-icon" data-series="wind"><span class="eg-source__icon"><span data-icon="wind" data-size="22"></span></span><span>Wind</span></div><div class="es-icon" data-series="hydro"><span class="eg-source__icon"><span data-icon="hydro" data-size="22"></span></span><span>Hydro</span></div><div class="es-icon" data-series="iex"><span class="eg-source__icon"><span data-icon="exchange" data-size="22"></span></span><span>Power exchange</span></div><div class="es-icon" data-series="grid"><span class="eg-source__icon"><span data-icon="grid" data-size="22"></span></span><span>Grid</span></div><div class="es-icon" data-series="battery"><span class="eg-source__icon"><span data-icon="battery" data-size="22"></span></span><span>Battery</span></div><div class="es-icon" data-series="demand"><span class="eg-source__icon"><span data-icon="bolt" data-size="22"></span></span><span>Demand</span></div></div>
+  <div class="es-tiles"><div class="eg-source" data-series="hydro" style="--share:7%"><span class="eg-source__icon"><span data-icon="hydro" data-size="22"></span></span><span class="eg-source__name">Hydro · 7%</span><span class="eg-source__value">3.39<small>MWh</small></span><span class="eg-source__bar"><span></span></span></div><div class="eg-source" data-series="wind" style="--share:9%"><span class="eg-source__icon"><span data-icon="wind" data-size="22"></span></span><span class="eg-source__name">Wind · 9%</span><span class="eg-source__value">4.57<small>MWh</small></span><span class="eg-source__bar"><span></span></span></div><div class="eg-source" data-series="solar" style="--share:6%"><span class="eg-source__icon"><span data-icon="solar" data-size="22"></span></span><span class="eg-source__name">Solar · 6%</span><span class="eg-source__value">3.11<small>MWh</small></span><span class="eg-source__bar"><span></span></span></div><div class="eg-source" data-series="iex" style="--share:33%"><span class="eg-source__icon"><span data-icon="exchange" data-size="22"></span></span><span class="eg-source__name">Power exchange · 33%</span><span class="eg-source__value">16.83<small>MWh</small></span><span class="eg-source__bar"><span></span></span></div><div class="eg-source" data-series="grid" style="--share:45%"><span class="eg-source__icon"><span data-icon="grid" data-size="22"></span></span><span class="eg-source__name">Grid · 45%</span><span class="eg-source__value">22.65<small>MWh</small></span><span class="eg-source__bar"><span></span></span></div></div>
+  <div class="es-pals"><div class="es-pal "><div class="es-pal__name">Harmony · default, one hue per source</div><div class="eg-ramp"><span data-series="hydro"></span><span data-series="wind"></span><span data-series="solar"></span><span data-series="iex"></span><span data-series="grid"></span><span data-series="battery"></span><span data-series="gov"></span></div></div><div class="es-pal eg-pal-volt"><div class="es-pal__name">Volt · chartreuse and sage</div><div class="eg-ramp"><span data-series="hydro"></span><span data-series="wind"></span><span data-series="solar"></span><span data-series="iex"></span><span data-series="grid"></span><span data-series="battery"></span><span data-series="gov"></span></div></div><div class="es-pal eg-pal-verdant"><div class="es-pal__name">Verdant · one green ramp</div><div class="eg-ramp"><span data-series="hydro"></span><span data-series="wind"></span><span data-series="solar"></span><span data-series="iex"></span><span data-series="grid"></span><span data-series="battery"></span><span data-series="gov"></span></div></div><div class="es-pal eg-pal-aurora"><div class="es-pal__name">Aurora · cool with a gold sun</div><div class="eg-ramp"><span data-series="hydro"></span><span data-series="wind"></span><span data-series="solar"></span><span data-series="iex"></span><span data-series="grid"></span><span data-series="battery"></span><span data-series="gov"></span></div></div></div>
+</div>
+<script>if (window.top === window) { var t = document.createElement("button"); t.className = "eg-btn eg-btn--sm"; t.textContent = "Switch theme"; t.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:9"; t.onclick = function () { var r = document.documentElement; r.setAttribute("data-theme", r.getAttribute("data-theme") === "light" ? "dark" : "light"); }; document.body.appendChild(t); }</script>
+</body>
+</html>

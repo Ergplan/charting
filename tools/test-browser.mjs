@@ -26,6 +26,7 @@ let html = '';
 try {
   html = execFileSync(browser, [
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+    ...(process.getuid?.() === 0 ? ['--no-sandbox'] : []), // containers / CI run as root
     `--user-data-dir=${fileURLToPath(new URL('../node_modules/.efc-browser-profile', import.meta.url))}`,
     '--window-size=1400,1000', '--virtual-time-budget=60000', '--dump-dom',
     `http://localhost:${port}/test/browser/`,

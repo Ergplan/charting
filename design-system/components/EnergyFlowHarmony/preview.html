@@ -1,0 +1,41 @@
+<!-- @dsCard group="Charts" height=760 subtitle="The production supply chart in the Harmony theme" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>EnergyFlow chart, Harmony — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>.efw { display: grid; gap: 16px; } #cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }</style>
+</head>
+<body class="eg-stage">
+<div class="efw"><div id="cards"></div><div id="chart"></div></div>
+<script>
+  // one day from the design system sample, in the library's dataset shape (end-stamped blocks)
+  var S = ErgOS.sample, day = Date.UTC(2026, 9, 13), n = S.now + 1;
+  var t = [], v = { demand: [], hydro: [], wind: [], solar: [], market: [], grid: [] };
+  for (var i = 0; i < n; i++) {
+    var d = S.demand[i], room = d, take = function (x) { var y = Math.max(0, Math.min(x, room)); room -= y; return y; };
+    t.push(day + (i + 1) * 900000);
+    v.demand.push(d); v.hydro.push(take(S.hydro[i])); v.wind.push(take(S.wind[i])); v.solar.push(take(S.solar[i]));
+    v.market.push(take(S.iex[i])); v.grid.push(room);
+  }
+  var board = EnergyFlow.createEnergyDashboard({
+    chartEl: document.getElementById('chart'), cardsEl: document.getElementById('cards'),
+    data: { t: t, stepMinutes: 15, values: v }, theme: 'harmony', height: 380, live: { series: 'demand' },
+    series: [
+      { key: 'hydro', label: 'Hydro', role: 'hydro' }, { key: 'wind', label: 'Wind', role: 'wind' },
+      { key: 'solar', label: 'Solar', role: 'solar' }, { key: 'market', label: 'Power exchange', role: 'market' },
+      { key: 'grid', label: 'Grid', role: 'grid' }, { key: 'demand', label: 'Demand', role: 'demand', type: 'line' }
+    ],
+    metrics: [
+      { id: 'demand', label: 'Total demand', series: 'demand', icon: 'bolt' },
+      { id: 'solar', label: 'Solar', series: 'solar', icon: 'solar' },
+      { id: 'wind', label: 'Wind', series: 'wind', icon: 'wind' },
+      { id: 'hydro', label: 'Hydro', series: 'hydro', icon: 'hydro' },
+      { id: 'market', label: 'Power exchange', series: 'market', icon: 'exchange' },
+      { id: 'grid', label: 'Grid', series: 'grid', icon: 'pylon' }
+    ]
+  });
+</script>
+</body>
+</html>

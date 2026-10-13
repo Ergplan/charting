@@ -1,0 +1,27 @@
+<!-- @dsCard group="Inputs" height=220 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fields</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+.fl-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:14px; max-width:760px; }
+</style>
+</head>
+<body class="eg-stage">
+<div class="eg-stack" style="gap:20px">
+  <div class="eg-row" style="gap:12px">
+    <div class="eg-range" role="group" aria-label="Date range"><button><span data-icon="calendar" data-size="16"></span>01 Oct 2026</button><span class="eg-range__arrow"><span data-icon="arrow-right" data-size="15"></span></span><button><span data-icon="calendar" data-size="16"></span>13 Oct 2026</button></div>
+    <button class="eg-btn eg-btn--ghost"><span data-icon="sliders" data-size="16"></span>Parameters<span data-icon="chevron-down" data-size="14"></span></button>
+    <label class="eg-switch"><input type="checkbox" id="auto" checked>Auto-trading</label>
+    <label class="eg-switch"><input type="checkbox" id="locky">Lock Y axis</label>
+  </div>
+  <div class="fl-grid">
+    <label class="eg-field"><span class="eg-field__label">Plant</span><span class="eg-input"><span data-icon="factory" data-size="16"></span><select id="plant"><option>HALDIRAM C1</option><option>HALDIRAM C3</option></select><span data-icon="chevron-down" data-size="14"></span></span></label>
+    <label class="eg-field"><span class="eg-field__label">Bid quantity</span><span class="eg-input"><input id="qty" value="2,716"><span class="eg-muted">kW</span></span></label>
+    <label class="eg-field"><span class="eg-field__label">Search plants</span><span class="eg-input"><span data-icon="search" data-size="16"></span><input id="q" placeholder="Name or code"></span></label>
+  </div>
+</div>
+</body>
+</html>
