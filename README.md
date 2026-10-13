@@ -14,7 +14,7 @@ A zero-dependency charting library for **energy consumption and generation time 
 - **Price landscape** (new, ergOS Harmony): a year of exchange prices as one heatmap, days across, blocks down, ₹0–₹10. Click a day to open it.
 - **Price profile** (new): one day's DAM, RTM and GDAM step lines against the state's marginal and cheapest spare variable cost, with buy and sell windows shaded.
 
-> **ergOS Harmony.** This repo also holds the ergOS design system (`design-system/`): tokens, the `eg-` CSS component kit, the `window.ErgOS` runtime and the redesigned screens. Start with the developer guide, [`docs/HARMONY.md`](docs/HARMONY.md), and the live gallery (`npm run demo` → `/design-system/gallery/`). The repo will be renamed **ergOSUI**; links redirect.
+> **ergOS Harmony.** This repo also holds the ergOS design system (`design-system/`): tokens, the `eg-` CSS component kit, the `window.ErgOS` runtime and the redesigned screens. Start with the developer guide, [`docs/HARMONY.md`](docs/HARMONY.md), the Next.js demo app (`npm run demo:next` → <http://localhost:3000>, source in `apps/ergos-demo/`) and the live gallery (`npm run demo` → `/design-system/gallery/`). The jouleWise logo in Harmony glass is in `design-system/assets/logo/`. The repo will be renamed **ergOSUI**; links redirect.
 
 It works on **any website**: plain HTML with one `<script>` tag, React, Next.js, Vue, Angular, WordPress… There is nothing to configure if your data uses the standard *Energy Supply Chart* export columns.
 

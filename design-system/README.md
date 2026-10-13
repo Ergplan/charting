@@ -83,7 +83,10 @@ ergOS Harmony is the interface language of ergOS, Joulewise's energy management 
 
 ## Logo
 
-No logo file was provided, so the wordmark is set in type: "erg" in `ink` and "OS" in `accent`, Urbanist 600 (`.eg-wordmark`). Replace it with the real mark when available.
+- The jouleWise wordmark is drawn in Harmony glass: Urbanist letters with the “o” as a glass orb. Use `assets/logo/joulewise-dark.svg` on dark grounds and `joulewise-light.svg` on light grounds; the orb (`joulewise-mark.svg`) and the app icon below 120 px.
+- The classic 2D glass version (`joulewise-classic-glass*.svg`) keeps the original gold `#CEAB0E` and brown `#4D3C00` for documents, partner decks and print.
+- The product name inside the app stays type: `.eg-wordmark`, “erg” in `ink` and “OS” in `accent`.
+- Rules and every file: `assets/logo/README.md`.
 
 ## Building with it
 

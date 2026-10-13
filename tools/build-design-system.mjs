@@ -86,6 +86,8 @@ for (const name of readdirSync(compDir).sort()) {
   const height = +((marker.match(/height=(\d+)/) || [])[1] || 300);
   const width = +((marker.match(/width=(\d+)/) || [])[1] || 0);
   html = html.replace(/^<!--[^\n]*-->\n/, '');
+  // previews link files relative to the system root (../../assets/…); gallery pages sit one level below it
+  html = html.replace(/(["'(])\.\.\/\.\.\//g, '$1../');
   html = html.replace('<html lang="en">', '<html lang="en" data-theme="dark">');
   html = html.replace('<head>', `<head>\n${head}`);
   // add a theme toggle to every standalone page

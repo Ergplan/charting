@@ -1,0 +1,37 @@
+.m-stage { display: flex; gap: 56px; justify-content: center; flex-wrap: wrap; padding: 8px 0 24px; }
+.m-phone { width: 390px; max-width: 100%; height: 844px; border-radius: 58px; padding: 12px; background: var(--charcoal); box-shadow: 0 0 0 2px var(--line-strong), var(--shadow-float); flex: none; }
+.m-screen { position: relative; width: 100%; height: 100%; border-radius: 47px; overflow: hidden; background-color: var(--canvas); display: flex; flex-direction: column; }
+.m-status { display: flex; justify-content: space-between; align-items: center; padding: 18px 30px 0; height: 50px; font: 600 15px/1 var(--font-sans); }
+.m-island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 120px; height: 34px; border-radius: 20px; background: var(--charcoal); }
+.m-icons { display: flex; gap: 6px; align-items: center; }
+.m-icons i { width: 18px; height: 10px; border-radius: 3px; border: 1.5px solid currentColor; }
+.m-ob { flex: 1; padding: 0 22px 20px; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.m-art { position: relative; height: 300px; margin: 0 -22px; }
+.m-links { position: absolute; inset: 0; }
+.m-links path { fill: none; stroke: var(--line-strong); stroke-width: 1.2; }
+.m-node { position: absolute; display: grid; gap: 2px; padding: 10px 20px 10px 12px; border-radius: 16px; background: var(--white); color: var(--charcoal); font-size: 11px; line-height: 13px; box-shadow: var(--shadow-float); }
+.m-node b { font-size: 13px; }
+.m-tag { position: absolute; right: -12px; bottom: -12px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--white); color: var(--charcoal); box-shadow: 0 0 0 3px var(--canvas); }
+.m-tag.g { background: var(--harmony); }
+.m-orb { position: absolute; left: 50%; top: 150px; width: 118px; transform: translateX(-50%); filter: drop-shadow(0 0 36px var(--glow)); }
+.m-h1 { margin: 0; font: 300 36px/40px var(--font-display); letter-spacing: -0.015em; }
+.m-h1 em { font-style: normal; font-weight: 500; color: var(--accent); }
+.m-dock a { padding: 0 14px; height: 42px; font-size: 13px; }
+.m-top { display: flex; justify-content: space-between; padding: 14px 20px 0; }
+.m-top div { display: flex; gap: 10px; }
+.m-folder { flex: 1; margin: 20px 8px 0; min-height: 0; }
+.m-folder .eg-folder { height: 100%; padding-top: 54px; }
+.m-folder .eg-folder__front { padding: 20px 20px 24px; --folder-dip: 46px; --folder-tab: 0.46; border-radius: 34px 34px 0 0; overflow: hidden; }
+.m-folder .eg-folder__back { bottom: 0; border-radius: 34px 34px 0 0; }
+.m-folder .eg-folder__sheets { width: 66%; right: 2%; top: 6px; }
+.m-folder .eg-sheet { height: 120px; padding: 10px 11px; font-size: 9px; line-height: 11px; border-radius: 14px; }
+.m-folder .eg-sheet b { font-size: 10px; line-height: 12px; }
+.m-folder .eg-folder__title { font-size: 22px; line-height: 28px; }
+.m-folder .eg-timeline { padding-left: 52px; gap: 18px; }
+.m-folder .eg-timeline::before { left: 13px; top: 44px; }
+.m-folder .eg-tl-item__icon { left: -52px; width: 40px; height: 40px; }
+.m-folder .eg-tl-item__title { font-size: 15px; line-height: 20px; }
+.m-folder .eg-tl-card { padding: 14px; gap: 12px; border-radius: 22px; }
+.m-folder .eg-tl-card__app { width: 40px; height: 40px; }
+.m-folder .eg-tl-card__title { font-size: 14px; line-height: 18px; }
+.m-folder .eg-thumb { width: 50px; height: 62px; padding: 6px 5px 5px; font-size: 8px; }

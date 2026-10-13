@@ -80,6 +80,8 @@ export class PriceLandscape {
   // ------------------------------------------------------------------ public API
   setData(data) { this.data = data; this.render(); }
   setMarket(market) { this.opts.market = market; this.render(); }
+  /** Switch colour map: a name ('landscape', 'harmony', 'volt', 'verdant') or a stop list. */
+  setColormap(map) { this.opts.colormap = map; this.legendBar.style.background = colormapCSS(this._map()); this.render(); }
   setTheme(theme, mode = this.opts.mode, rerender = true) {
     this.opts.theme = theme;
     this.opts.mode = mode;

@@ -376,6 +376,7 @@ export declare class PriceLandscape {
   select(day: number): void;
   setData(data: PriceMatrix): void;
   setMarket(market: PriceMarket): void;
+  setColormap(map: ColormapName | string[]): void;
   setTheme(theme: ThemeName | string | Theme, mode?: 'auto' | 'light' | 'dark'): void;
   render(): void;
   destroy(): void;

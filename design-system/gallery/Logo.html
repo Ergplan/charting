@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="../harmony.css">
+<script src="../../dist/energy-flow-chart.min.js"></script>
+<script src="../harmony.js"></script>
+<meta charset="utf-8">
+<title>Logo — preview</title>
+<style>
+  .lg { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  .lg div { height: 150px; border-radius: 20px; display: grid; place-items: center; padding: 18px; border: 1px solid var(--line); }
+  .lg img { max-width: 100%; height: 58px; }
+  .lg .mk img { height: 96px; }
+</style>
+</head>
+<body class="eg-stage">
+<div class="lg">
+  <div style="background: var(--charcoal)"><img src="../assets/logo/joulewise-dark.svg" alt="jouleWise, glass, dark ground"></div>
+  <div style="background: #EEF2EC"><img src="../assets/logo/joulewise-light.svg" alt="jouleWise, glass, light ground"></div>
+  <div style="background: #FFFFFF"><img src="../assets/logo/joulewise-classic-glass.svg" alt="jouleWise, classic 2D glass"></div>
+  <div class="mk" style="background: var(--charcoal)"><img src="../assets/logo/joulewise-mark.svg" alt="Glass orb mark"></div>
+  <div class="mk" style="background: var(--surface)"><img src="../assets/logo/joulewise-app-icon.svg" alt="App icon"></div>
+  <div style="background: #1A1407"><img src="../assets/logo/joulewise-classic-glass-dark.svg" alt="jouleWise, classic 2D glass, dark ground"></div>
+</div>
+<script>if (window.top === window) { var t = document.createElement("button"); t.className = "eg-btn eg-btn--sm"; t.textContent = "Switch theme"; t.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:9"; t.onclick = function () { var r = document.documentElement; r.setAttribute("data-theme", r.getAttribute("data-theme") === "light" ? "dark" : "light"); }; document.body.appendChild(t); }</script>
+</body>
+</html>

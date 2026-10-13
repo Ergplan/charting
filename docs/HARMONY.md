@@ -43,6 +43,14 @@ npm run demo         # http://localhost:5178
 | `/demo/` | The original chart demo (all themes) |
 | `/test/browser/` | The browser test suite |
 
+**Next.js demo app** (`apps/ergos-demo`): the redesigned screens as a clickable app (Today, Savings, Prices, Actual vs forecast, Real talk, Mobile, Brand, Design system).
+
+```bash
+npm run demo:next     # installs apps/ergos-demo and starts it on http://localhost:3000
+```
+
+It is the reference for wiring Harmony into a React/Next.js codebase: see section 9 and `apps/ergos-demo/README.md`.
+
 Tests: `npm test` (node, 57 tests) and `npm run test:browser` (headless Chrome, 62 tests). Run both before every pull request.
 
 ## 2. What is where
@@ -65,8 +73,11 @@ design-system/
   harmony.d.ts             its types
   components/<Name>/       preview.html + README.md for each component and screen
   gallery/                 generated standalone pages
+design-system/assets/logo/ jouleWise logo files (glass, classic 2D glass, mark, app icon, mono)
+apps/ergos-demo/           Next.js demo app: every redesigned screen, clickable
 docs/HARMONY.md            this guide
 demo/harmony.html          the showcase page
+tools/logo/                logo generator
 tools/build-design-system.mjs   builds tokens.css, tokens.js and gallery/
 ```
 
@@ -289,7 +300,13 @@ export function PriceExplorer({ prices }) {
 
 For `window.ErgOS` (folder shape, icons, voice bar) load `design-system/harmony.js` once with `next/script` (`strategy="afterInteractive"`) and call `ErgOS.mount(node)` after rendering markup that uses `data-icon` or `eg-folder`. Types: reference `energy-flow-chart/design-system/harmony.d.ts`.
 
+A complete, typed example is the demo app: `apps/ergos-demo/components/ui.tsx` (Button, Chip, Seg, StatTile, PlantCard, Track, ErgosChart), `components/blocks.tsx` (Folder, Timeline, VoiceBar), `components/Shell.tsx` (sidebar, top bar, theme switch, mobile dock) and `lib/ergos.ts` (loads `harmony.js` on the client only). Copy them into ergOS as the starting point.
+
 Wrap repeated markup in your own small components (`<Button variant="primary">`, `<Chip tone="accent">`) that only output the `eg-` classes, so the design system stays the single source of styling.
+
+### Logo
+
+The jouleWise logo files are in `design-system/assets/logo/` (also exported as `energy-flow-chart/design-system/assets/logo/*`). Use `joulewise-dark.svg` on dark grounds and `joulewise-light.svg` on light grounds; swap them with the theme (`components/Logo.tsx` in the demo does this in CSS). The classic 2D glass in the original gold is for documents and print. Rules: `design-system/assets/logo/README.md`.
 
 ## 10. Rules the team agrees on
 

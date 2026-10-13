@@ -11,6 +11,9 @@ Added
 - **PriceProfile**: one day's DAM / RTM / GDAM step lines against the marginal state VC and cheapest spare VC, with automatic or supplied buy and sell windows.
 - `createPriceExplorer` links the two; `fromPriceRows`, `tradeWindows`, `dayStats`, `colormaps`, `colorAt`, `colormapCSS`, `samplePriceYear` in `prices.js`.
 - Card icons `solar`, `wind`, `hydro`, `exchange`, `pylon`.
+- **Next.js demo app** `apps/ergos-demo` (`npm run demo:next`): Today, Savings, Prices, Actual vs forecast, Real talk, Mobile, Brand and the design-system gallery, built only from Harmony and this library.
+- **jouleWise logo in Harmony glass** (`design-system/assets/logo/`): glass wordmark for dark and light grounds, glass orb mark, app icon, mono, and a classic 2D glass version in the original gold; generator in `tools/logo/`.
+- `PriceLandscape.setColormap()`.
 - `demo/harmony.html`, `docs/HARMONY.md`, tests for themes, curves, prices, tokens and the new charts (node 57, browser 62).
 
 Changed
