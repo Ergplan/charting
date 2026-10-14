@@ -1,0 +1,22 @@
+{
+  "name": "leprasm-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Leprasm reimagined: an Apple-style product launch site for a premium Indian handbag label (INR 2,000 - 7,000, metro 25-45)",
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001"
+  },
+  "dependencies": {
+    "next": "15.5.26",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "typescript": "5.9.3"
+  }
+}
