@@ -14,6 +14,7 @@ const skip = (why) => { throw new SkipError(why); };
 const assert = {
   ok: (v, msg = 'expected truthy') => { if (!v) throw new AssertionError(msg); },
   equal: (a, b, msg) => { if (a !== b) throw new AssertionError(`${msg || 'not equal'}: got ${JSON.stringify(a)}, want ${JSON.stringify(b)}`); },
+  notEqual: (a, b, msg) => { if (a === b) throw new AssertionError(`${msg || 'unexpectedly equal'}: ${JSON.stringify(a).slice(0, 60)}`); },
   close: (a, b, tol, msg) => { if (!(Math.abs(a - b) <= tol)) throw new AssertionError(`${msg || 'not close'}: got ${a}, want ${b} ± ${tol}`); },
   match: (s, re, msg) => { if (!re.test(String(s))) throw new AssertionError(`${msg || 'no match'}: ${JSON.stringify(String(s))} !~ ${re}`); },
   rejects: async (p, re) => { try { await p; } catch (e) { if (re && !re.test(e.message)) throw new AssertionError(`wrong error: ${e.message}`); return; } throw new AssertionError('expected rejection'); },
@@ -72,6 +73,11 @@ const chipVal = (chart, key) => chart.chips[key].val.textContent;
 const chipPrice = (chart, key) => chart.chips[key].price?.textContent ?? null;
 const sumRow = (chart, label) => [...chart.bandSum.children].find((d) => d.firstChild.textContent === label)?.lastChild.textContent;
 const num = (s) => parseFloat(String(s).replace(/[^\d.\-]/g, ''));
+const areaColor = (chart, key) => {
+  const fill = chart.gAreas.querySelector(`[data-key="${key}"]`).getAttribute('fill');
+  const m = /url\(#([^)]+)\)/.exec(fill);
+  return m ? chart.defs.querySelector(`#${m[1]} stop`).getAttribute('stop-color') : fill;
+};
 const yTop = (chart) => Math.max(...[...chart.gGrid.querySelectorAll('text')].map((t) => num(t.textContent)).filter(Number.isFinite));
 const noNaN = (root) => {
   const bad = [...root.querySelectorAll('*')].flatMap((el) => [...el.attributes].filter((a) => /NaN|Infinity/.test(a.value)).map((a) => `${el.tagName}[${a.name}=${a.value.slice(0, 40)}]`));
@@ -286,7 +292,7 @@ test('cardsClickable:true: click hides the series (survivor colours unchanged)',
   assert.equal(b.chart.chips.grid.b.getAttribute('aria-pressed'), 'false');
   assert.equal(gridCard.getAttribute('aria-pressed'), 'false');
   assert.ok(!b.chart.gAreas.querySelector('[data-key="grid"]'), 'grid area removed');
-  assert.equal(b.chart.gAreas.querySelector('[data-key="market"]').getAttribute('fill'), marketColor, 'market keeps its colour');
+  assert.equal(areaColor(b.chart, 'market'), marketColor, 'market keeps its colour');
 });
 
 test('peak card: value = max demand, description names its time', async () => {
@@ -301,7 +307,7 @@ test('peak card: value = max demand, description names its time', async () => {
 });
 
 // ================================================================== prices
-test('timeline hover with prices: per-block price per source, demand blank, surplus "not purchased"', async () => {
+test('timeline hover with prices: per-block price per source, demand blank, zero surplus "None", priced-run surplus "Not purchased"', async () => {
   const b = track(await mount(host().chart, { data: synth(), prices: PRICES }));
   await frames();
   const [i0] = b.chart.span;
@@ -310,7 +316,13 @@ test('timeline hover with prices: per-block price per source, demand blank, surp
   assert.equal(chipPrice(b.chart, 'market'), '@ ₹10.00/kWh');
   assert.equal(chipPrice(b.chart, 'renewable'), '@ ₹4.00/kWh');
   assert.equal(chipPrice(b.chart, 'demand').trim(), '');
-  assert.equal(chipPrice(b.chart, 'surplus'), 'not purchased');
+  assert.equal(chipPrice(b.chart, 'surplus'), 'None', 'zero surplus explains itself');
+  b.chart.store.set({ hover: i0 + 50 - 1 }); // 12:15–12:30: surplus > 0, no price spec
+  assert.equal(chipPrice(b.chart, 'surplus'), 'Not purchased');
+  b.chart.store.set({ hover: i0 + 4 - 1 }); // 00:45: no solar, no market
+  assert.equal(chipPrice(b.chart, 'market'), 'Not purchased');
+  assert.equal(chipPrice(b.chart, 'renewable'), 'No generation');
+  assert.equal(chipPrice(b.chart, 'localBattery'), 'Idle');
 });
 
 test('price cards: Avg Purchase Price is volume-weighted over the visible range', async () => {
@@ -912,6 +924,181 @@ test('price profile: windows, toggles and keyboard readout', async () => {
   svg.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
   assert.ok(!chart.querySelector('.efc-pp-tip').hidden, 'keyboard opens the readout');
   assert.match(chart.querySelector('.efc-pp-tip').textContent, /Block 72/);
+});
+
+// ================================================================== Harmony design system (v1.4)
+test('Harmony is the default: glass panel, tick pills, StatTile cards; classic still available', async () => {
+  const { chart: el, cards } = host();
+  const b = track(await mount(el, { data: synth(), cards }));
+  await frames();
+  assert.equal(el.dataset.efcSkin, 'harmony');
+  assert.equal(el.dataset.efcPanel, 'glass', 'glass panel');
+  assert.ok(b.chart.gAxes.querySelectorAll('.efc-tick rect').length > 3, 'outlined tick pills');
+  assert.ok(cards.querySelector('.efc-card-icon svg'), 'StatTile icon');
+  const card = cards.querySelector('.efc-card');
+  const order = [...card.children].map((n) => n.getAttribute('class').split(' ')[0]);
+  assert.ok(order.indexOf('efc-card-spark') < order.indexOf('efc-card-sub'), `value → sparkline → footnote (${order})`);
+  b.chart.setTheme('energy', 'light');
+  await frames();
+  assert.ok(!el.dataset.efcPanel && !el.dataset.efcSkin, 'classic: no panel / skin');
+  assert.equal(b.chart.gAxes.querySelectorAll('.efc-tick').length, 0, 'classic axis labels');
+  assert.ok(!cards.querySelector('.efc-card-icon'), 'classic cards rebuilt without icons');
+  const c = track(await mount(host().chart, { data: synth(), panel: false }));
+  assert.ok(!c.chart.el.dataset.efcPanel, 'panel:false');
+});
+
+test('resting cursor sits on the latest block with value pills (not pinned)', async () => {
+  const b = track(await mount(host().chart, { data: synth({ lastBlocks: 60 }) }));
+  await frames();
+  const [, i1] = b.chart.span;
+  assert.equal(b.chart.store.get().hover, null, 'nothing hovered');
+  const pill = b.chart.gCross.querySelector('.efc-timepill');
+  assert.ok(pill, 'cursor time pill at rest');
+  assert.match(pill.textContent, /15:00/, 'block 60 ends 15:00');
+  const vp = [...b.chart.gCross.querySelectorAll('.efc-vpill')];
+  assert.equal(vp.length, 2);
+  assert.match(vp[0].textContent, new RegExp(`Demand${Math.round(b.chart.data.values.demand[i1]).toLocaleString('en-IN')} kW`));
+  assert.ok(vp[0].classList.contains('is-ref') && vp[1].classList.contains('is-focus'));
+  assert.ok(!b.chart.bandEl.classList.contains('is-pinned'));
+  assert.match(b.chart.bandWhen.textContent, /Latest in view/);
+});
+
+test('value pills: focus follows the band under the pointer and dims the others', async () => {
+  const b = track(await mount(host().chart, { data: synth() }));
+  await frames();
+  const r = hitRect(b.chart);
+  const [i0] = b.chart.span;
+  b.chart.store.set({ hover: i0 + 52 - 1 }); // 12:45: solar, grid and market all present
+  const i = b.chart.store.get().hover;
+  const x = r.left + b.chart.x(b.chart.data.t[i]) - b.chart.dim.m.left;
+  const yOf = (v) => r.top + b.chart.y(v) - b.chart.dim.m.top;
+  const sol = b.chart.data.values.renewable[i];
+  b.chart.hit.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: yOf(sol / 2), bubbles: true }));
+  assert.equal(b.chart._focusKey, 'renewable');
+  assert.match(b.chart.gCross.querySelector('.efc-vpill.is-focus').textContent, /^Renewable/);
+  assert.ok(b.chart.gAreas.querySelector('[data-key="grid"]').classList.contains('efc-dim'), 'others dimmed');
+  const grid = b.chart.data.values.grid[i];
+  b.chart.hit.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: yOf(sol + grid / 2), bubbles: true }));
+  assert.equal(b.chart._focusKey, 'grid');
+  b.chart.hit.dispatchEvent(new PointerEvent('pointerleave'));
+  assert.equal(b.chart.store.get().highlight, null, 'leaving clears the dimming');
+});
+
+test('tick pills never overlap; the cursor pill replaces the tick under it; ‹ › step blocks', async () => {
+  for (const width of [1000, 520]) {
+    const b = track(await mount(host(width).chart, { data: synth(), rangeMode: 'week' }));
+    await frames();
+    const boxes = [...b.chart.gAxes.querySelectorAll('.efc-tick rect')].map((r) => r.getBBox()).sort((a, z) => a.x - z.x);
+    for (let k = 1; k < boxes.length; k++) assert.ok(boxes[k].x >= boxes[k - 1].x + boxes[k - 1].width, `ticks overlap at ${width}px`);
+  }
+  const b = track(await mount(host().chart, { data: synth() }));
+  await frames();
+  const [i0] = b.chart.span;
+  b.chart.store.set({ hover: i0 + 48 - 1 }); // 12:00, right on a tick
+  const hidden = [...b.chart.gAxes.querySelectorAll('.efc-tick')].filter((g) => g.getAttribute('opacity') === '0');
+  assert.ok(hidden.length >= 1, 'tick under the cursor hidden');
+  const [prev, next] = [...b.chart.gCross.querySelectorAll('.efc-timepill-step')];
+  next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  assert.equal(b.chart.store.get().hover, i0 + 48);
+  b.chart.gCross.querySelectorAll('.efc-timepill-step')[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  b.chart.gCross.querySelectorAll('.efc-timepill-step')[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  assert.equal(b.chart.store.get().hover, i0 + 46);
+  void prev;
+});
+
+test('future after the latest block is hatched and counts the blocks to go', async () => {
+  const b = track(await mount(host().chart, { data: synth({ lastBlocks: 60 }) }));
+  await frames();
+  const f = b.chart.gNow.querySelector('.efc-future');
+  assert.ok(f, 'hatched zone');
+  assert.match(f.textContent, /^36 blocks to go$/);
+  const full = track(await mount(host().chart, { data: synth({ lastBlocks: 96 }) }));
+  await frames();
+  assert.ok(!full.chart.gNow.querySelector('.efc-future'), 'complete day: no future zone');
+});
+
+test('band: source icons, "Block n of 96", zero notes', async () => {
+  const b = track(await mount(host().chart, { data: synth() }));
+  await frames();
+  assert.ok(b.chart.chips.grid.b.querySelector('.efc-key-ico svg'), 'grid shows its icon');
+  assert.ok(b.chart.chips.demand.b.querySelector('.efc-key.is-line'), 'demand keeps the dotted key');
+  const [i0] = b.chart.span;
+  b.chart.store.set({ hover: i0 + 37 - 1 });
+  assert.match(b.chart.bandWhen.textContent, /Block 37 of 96/);
+  assert.equal(chipPrice(b.chart, 'localBattery'), 'Idle');
+});
+
+test('custom range: toolbar Custom shows the from → to pill; pickers drive the window', async () => {
+  const { chart: el, cards } = host();
+  const seen = [];
+  const b = track(await mount(el, { data: synth({ days: 5 }), cards, onCustomRange: (f, t) => seen.push(`${f}>${t}`) }));
+  await frames();
+  assert.ok(!b.chart.dayPick.wrap.hidden && b.chart.rangePick.hidden, 'day mode: single date pill');
+  el.querySelector('.efc-toolbar [data-v="custom"]').click();
+  await frames();
+  assert.equal(b.chart.rangeMode, 'custom');
+  assert.ok(b.chart.dayPick.wrap.hidden && !b.chart.rangePick.hidden, 'custom: range pill');
+  const from = b.chart.fromPick.inp;
+  const to = b.chart.toPick.inp;
+  assert.equal(from.min, '2026-09-22');
+  assert.equal(from.max, '2026-09-26');
+  from.value = '2026-09-23'; from.dispatchEvent(new Event('change'));
+  to.value = '2026-09-25'; to.dispatchEvent(new Event('change'));
+  await frames();
+  assert.equal(b.chart.customRange.join(), '2026-09-23,2026-09-25');
+  const [a, z] = b.store.get().range;
+  assert.equal((z - a) / 86_400_000, 3, 'three whole days');
+  assert.equal(cards.querySelector('.efc-card-period').textContent, '23–25 Sep');
+  assert.match(b.chart.rangePick.textContent, /23 Sep 2026.*25 Sep 2026/);
+  assert.equal(seen.at(-1), '2026-09-23>2026-09-25');
+  to.value = '2026-09-22'; to.dispatchEvent(new Event('change'));
+  assert.equal(b.chart.customRange.join(), '2026-09-22,2026-09-23', 'reversed ends are swapped');
+});
+
+test('custom range: zoom inside, double-click returns to the chosen days; option + attributes start in custom', async () => {
+  const b = track(await mount(host().chart, { data: synth({ days: 5 }), customRange: ['2026-09-23', '2026-09-24'] }));
+  await frames();
+  assert.equal(b.chart.rangeMode, 'custom');
+  const r = hitRect(b.chart);
+  const ev = (type, f) => b.chart.hit.dispatchEvent(new PointerEvent(type, { clientX: r.left + r.width * f, clientY: r.top + 40, pointerId: 1, pointerType: 'mouse', bubbles: true }));
+  ev('pointerdown', 0.2); ev('pointermove', 0.5); ev('pointerup', 0.5);
+  await frames();
+  const [a, z] = b.store.get().range;
+  assert.ok(z - a < 86_400_000, 'zoomed inside the custom window');
+  b.chart.hit.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+  assert.equal(b.store.get().range[1] - b.store.get().range[0], 2 * 86_400_000, 'back to the two chosen days');
+  const { wrap } = host();
+  const url = URL.createObjectURL(new Blob([JSON.stringify(synth({ days: 5 }))], { type: 'application/json' }));
+  wrap.innerHTML = `<div data-energy-flow data-src="${url}" data-from="2026-09-24" data-to="2026-09-25" data-smoothing="3"></div>`;
+  await autoMount(wrap);
+  const am = wrap.querySelector('[data-energy-flow]');
+  assert.equal(am.dataset.efcRange, 'custom');
+  assert.ok(am.querySelector('.efc-daterange:not([hidden])'));
+  cleanups.push(() => am.replaceChildren());
+  const open = track(await mount(host().chart, { data: synth(), customRangeLimit: false, toolbar: { custom: false } }));
+  assert.ok(!open.chart.fromPick.inp.min, 'customRangeLimit:false → any date');
+  assert.ok(!open.chart.toolbarEl.querySelector('[data-v="custom"]'), 'toolbar {custom:false}');
+});
+
+test('smoothing: curves drawn from a moving average; readings, cards and totals stay raw', async () => {
+  const { chart: el, cards } = host();
+  const b = track(await mount(el, { data: synth(), cards }));
+  await frames();
+  const rawPath = b.chart.gLines.querySelector('[data-key="demand"][stroke-dasharray]').getAttribute('d');
+  const rawCard = cards.querySelector('.efc-card-value').textContent;
+  b.chart.setOptions({ smoothing: 5 });
+  await frames();
+  assert.notEqual(b.chart.gLines.querySelector('[data-key="demand"][stroke-dasharray]').getAttribute('d'), rawPath, 'geometry changed');
+  const raw = b.chart.data.values.demand;
+  const sm = b.chart._vals('demand');
+  const k = b.chart.span[0] + 50; // inside the visible day
+  assert.close(sm[k], (raw[k - 2] + raw[k - 1] + raw[k] + raw[k + 1] + raw[k + 2]) / 5, 1e-9, 'centred 5-block average');
+  b.chart.store.set({ hover: k });
+  assert.equal(num(chipVal(b.chart, 'demand')), Math.round(raw[k]), 'band shows the raw reading');
+  assert.equal(cards.querySelector('.efc-card-value').textContent, rawCard, 'card totals unchanged');
+  b.chart.setOptions({ smoothing: 0 });
+  await frames();
+  assert.equal(b.chart.gLines.querySelector('[data-key="demand"][stroke-dasharray]').getAttribute('d'), rawPath, 'off again');
 });
 
 // ------------------------------------------------------------------ run

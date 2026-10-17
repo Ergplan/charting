@@ -1,4 +1,4 @@
-import type { ForwardRefExoticComponent, RefAttributes, CSSProperties } from 'react';
+import type { ForwardRefExoticComponent, RefAttributes, CSSProperties, ReactElement } from 'react';
 import type { ChartOptions, EnergyFlowChart, Metric } from './index';
 
 export interface EnergyFlowChartViewProps extends ChartOptions {
@@ -9,14 +9,14 @@ export interface EnergyFlowChartViewProps extends ChartOptions {
 export declare const EnergyFlowChartView: ForwardRefExoticComponent<EnergyFlowChartViewProps & RefAttributes<EnergyFlowChart>>;
 
 export interface EnergyCardsViewProps { chart: EnergyFlowChart | null; metrics: Metric[]; minWidth?: number; className?: string; style?: CSSProperties }
-export declare function EnergyCardsView(props: EnergyCardsViewProps): JSX.Element;
+export declare function EnergyCardsView(props: EnergyCardsViewProps): ReactElement;
 
 export interface EnergyDashboardProps extends EnergyFlowChartViewProps { metrics?: Metric[]; cardsMinWidth?: number; gap?: number }
 export declare const EnergyDashboard: ForwardRefExoticComponent<EnergyDashboardProps & RefAttributes<EnergyFlowChart | null>>;
 
 export interface EnergyFlowBoardProps extends Omit<import('./index').MountOptions, 'cards'> {
   view?: 'timeline' | 'tod';
-  rangeMode?: 'day' | 'week';
+  rangeMode?: 'day' | 'week' | 'custom';
   showCards?: boolean;
   className?: string;
   cardsClassName?: string;

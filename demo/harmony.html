@@ -9,7 +9,9 @@
 <link rel="stylesheet" href="../design-system/harmony.css">
 <style>
   body.eg-stage { padding: 32px 24px 80px; }
-  main { max-width: 1320px; margin: 0 auto; display: grid; gap: 24px; }
+  main { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .bar .eg-row { flex-wrap: wrap; }
+  @media (max-width: 640px) { body.eg-stage { padding: 20px 16px 60px; } .eg-h1 { font-size: 34px; line-height: 40px; } }
   .bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
   .panel { padding: 22px; }
   #cards { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
@@ -34,7 +36,7 @@
   </header>
 
   <section id="cards" aria-label="Key figures"></section>
-  <section class="eg-glass panel"><div id="chart"></div></section>
+  <section><div id="chart"></div></section>  <!-- the chart draws its own Harmony glass panel -->
 
   <div id="landscape"></div>
   <div id="profile"></div>
@@ -53,6 +55,7 @@
   import { mount, samplePriceYear, createPriceExplorer, dayIndexOf } from '../src/index.js';
 
   const board = await mount('#chart', { data: window.ENERGY_DATA, cards: '#cards', theme: 'harmony', mode: 'auto', height: 420 });
+  window.board = board; // handy for poking at in devtools
   const prices = samplePriceYear();
   const explorer = createPriceExplorer({ landscape: '#landscape', profile: '#profile', data: prices, day: dayIndexOf(prices, '2026-07-04'), mode: 'auto' });
 

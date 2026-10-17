@@ -12,6 +12,10 @@ import { getTheme, resolveMode, resolveSeriesColors, applyThemeVars } from './th
 import { aggregator, indexSpan } from './data.js';
 import { fmtEnergy, fmtPower, fmtPercent, fmtNumber, fmtBlockTime, fmtDay, fmtPrice, fmtMoney, fmtPeriod } from './format.js';
 import { injectStyles } from './styles.js';
+import { monotonePath } from './curves.js';
+
+// Harmony names for the generic metric icons (design-system iconography)
+const HARMONY_ICON = { sun: 'solar', grid: 'pylon', market: 'exchange' };
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 
@@ -33,6 +37,8 @@ export const icons = {
   exchange: '<path d="M4 8.5h13.5M14 4.5l4 4-4 4"/><path d="M20 15.5H6.5M10 11.5l-4 4 4 4"/>',
   pylon: '<path d="M12 2.5 7 21.5M12 2.5l5 19"/><path d="M4.5 7h15M6.5 11.5h11"/><path d="M4.5 7v2M19.5 7v2M8.6 15.6l6.8 3.9M15.4 15.6l-6.8 3.9"/>',
 };
+
+const CHROME = ['surface', 'page', 'ink', 'ink2', 'muted', 'grid', 'axis', 'border', 'tooltip', 'band', 'accent', 'glass', 'glass-strong', 'shadow-edge', 'shadow-float'];
 
 const FORMATS = {
   energy: (v) => fmtEnergy(v),
@@ -74,6 +80,8 @@ export class EnergyCards {
     this.update();
   }
 
+  _skin() { return this.chart ? this.chart.theme?.skin : getTheme(this.opts.theme).skin; }
+
   get data() { return this.chart ? this.chart.data : this.opts.data; }
 
   get colors() {
@@ -94,10 +102,10 @@ export class EnergyCards {
     this.el.replaceChildren();
     if (this.chart) {
       // inherit chrome tokens from the chart so cards match in both modes
-      for (const k of ['surface', 'page', 'ink', 'ink2', 'muted', 'grid', 'axis', 'border', 'tooltip', 'band', 'accent']) {
-        this.el.style.setProperty(`--efc-${k}`, `var(--efc-${k}-from-chart)`);
-      }
+      for (const k of CHROME) this.el.style.setProperty(`--efc-${k}`, `var(--efc-${k}-from-chart)`);
     }
+    const harmony = this._skin() === 'harmony';
+    if (this._skin()) this.el.dataset.efcSkin = this._skin(); else delete this.el.dataset.efcSkin;
     this.cards = this.metrics.map((m) => {
       const keys = this._keys(m);
       const toggles = !!this.opts.clickable && m.toggle !== false && keys.length > 0;
@@ -110,7 +118,8 @@ export class EnergyCards {
       label.textContent = m.label;
       // period this card's number covers: always visible, so a zoomed / scrolled chart never leaves it ambiguous
       const period = this.opts.showPeriod === false ? null : el('div', 'efc-card-period', card); // own line under the label
-      if (this.opts.icons && m.icon !== false) {
+      // StatTile (Harmony): label + tinted series icon, date, light metric, sparkline, footnote
+      if ((this.opts.icons ?? harmony) && m.icon !== false) {
         const ic = el('div', 'efc-card-icon', top);
         const svg = document.createElementNS(SVGNS, 'svg');
         svg.setAttribute('viewBox', '0 0 24 24');
@@ -119,7 +128,8 @@ export class EnergyCards {
         svg.setAttribute('stroke-width', '1.8');
         svg.setAttribute('stroke-linecap', 'round');
         svg.setAttribute('stroke-linejoin', 'round');
-        svg.innerHTML = icons[m.icon] || icons.bolt; // icon markup is library-owned, never user data
+        const name = harmony ? HARMONY_ICON[m.icon] || m.icon : m.icon;
+        svg.innerHTML = icons[name] || icons.bolt; // icon markup is library-owned, never user data
         ic.appendChild(svg);
       }
       const value = el('div', 'efc-card-value', card);
@@ -130,7 +140,8 @@ export class EnergyCards {
         spark.setAttribute('class', 'efc-card-spark');
         spark.setAttribute('preserveAspectRatio', 'none');
         spark.setAttribute('aria-hidden', 'true');
-        card.appendChild(spark);
+        if (harmony) card.insertBefore(spark, sub); // StatTile order: value, sparkline, footnote
+        else card.appendChild(spark);
       }
       if (keys.length) {
         card.addEventListener('mouseenter', () => this.store.setHighlight(keys));
@@ -163,9 +174,11 @@ export class EnergyCards {
     const d = this.data;
     if (!d) return;
     if (this.chart) {
-      for (const k of ['surface', 'page', 'ink', 'ink2', 'muted', 'grid', 'axis', 'border', 'tooltip', 'band', 'accent']) {
-        this.el.style.setProperty(`--efc-${k}-from-chart`, this.chart.t[k]);
-      }
+      const t = this.chart.t;
+      const fallback = { glass: t.surface, 'glass-strong': t.surface, 'shadow-edge': 'none', 'shadow-float': 'none' };
+      const src = { ...t, glass: t.glass, 'glass-strong': t.glassStrong, 'shadow-edge': t.shadowEdge, 'shadow-float': t.shadowFloat };
+      for (const k of CHROME) this.el.style.setProperty(`--efc-${k}-from-chart`, src[k] ?? fallback[k] ?? '');
+      if ((this.el.dataset.efcSkin || '') !== (this._skin() || '')) { this._build(); return this.update(); } // theme family changed
       this.el.style.colorScheme = this.chart.modeResolved;
       // follow the chart's skin and font (Harmony pills, glass cards)
       const skin = this.chart.el.dataset.efcSkin;
@@ -300,6 +313,7 @@ export class EnergyCards {
     if (n < 2) return;
     const W = 200;
     const H = 30;
+    const harmony = this._skin() === 'harmony';
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     const vals = new Array(n);
     let max = 0;
@@ -310,11 +324,28 @@ export class EnergyCards {
     const x = (k) => (k / (n - 1)) * W;
     const y = (v) => H - 2 - (max > 0 ? (v / max) * (H - 4) : 0);
     let line = '';
-    for (let k = 0; k < n; k++) line += `${k ? 'L' : 'M'}${x(k).toFixed(1)},${y(vals[k]).toFixed(1)}`;
+    if (harmony) line = monotonePath(vals.map((v, k) => [x(k), y(v)])); // monotone, like the charts
+    else for (let k = 0; k < n; k++) line += `${k ? 'L' : 'M'}${x(k).toFixed(1)},${y(vals[k]).toFixed(1)}`;
     const area = document.createElementNS(SVGNS, 'path');
     area.setAttribute('d', `${line}L${W},${H}L0,${H}Z`);
     area.setAttribute('fill', color);
     area.setAttribute('fill-opacity', '0.18');
+    if (harmony) {
+      // fade from the line into the glass, as the chart bands do
+      const id = `efc-sg-${Math.random().toString(36).slice(2, 8)}`;
+      const defs = document.createElementNS(SVGNS, 'defs');
+      const lg = document.createElementNS(SVGNS, 'linearGradient');
+      lg.setAttribute('id', id); lg.setAttribute('x1', '0'); lg.setAttribute('y1', '0'); lg.setAttribute('x2', '0'); lg.setAttribute('y2', '1');
+      for (const [off, op] of [[0, 0.42], [1, 0]]) {
+        const st = document.createElementNS(SVGNS, 'stop');
+        st.setAttribute('offset', String(off)); st.setAttribute('stop-color', color); st.setAttribute('stop-opacity', String(op));
+        lg.appendChild(st);
+      }
+      defs.appendChild(lg);
+      svg.appendChild(defs);
+      area.setAttribute('fill', `url(#${id})`);
+      area.setAttribute('fill-opacity', '1');
+    }
     const stroke = document.createElementNS(SVGNS, 'path');
     stroke.setAttribute('d', line);
     stroke.setAttribute('fill', 'none');

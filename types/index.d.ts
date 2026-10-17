@@ -33,6 +33,12 @@ export interface Series {
   tooltip?: boolean;
   /** Exclude from the tooltip's "Total supply" sum (e.g. surplus exported). */
   countInTotal?: boolean;
+  /** Band note when the value is 0 (Harmony defaults: 'Not purchased', 'Not drawn', 'Idle', 'No generation', 'None'). */
+  zeroNote?: string;
+  /** Band note otherwise (default: the price, or nothing). */
+  note?: string;
+  /** Icon in the Harmony band chip (default from the role: solar, wind, hydro, exchange, pylon, battery…). */
+  icon?: string;
 }
 
 export interface Band { start: string; end: string; label?: string; color?: string }
@@ -126,10 +132,21 @@ export interface ChartOptions {
   onYLockChange?: (locked: boolean) => void;
   /** 'day' (default): one whole calendar day, zoom/pan locked, overview snaps to days.
    *  'week': last `weekDays` days, free zoom/pan. Toggle: setRangeMode(). */
-  rangeMode?: 'day' | 'week';
+  rangeMode?: 'day' | 'week' | 'custom';
+  /** Inclusive whole days to show, e.g. ['2026-09-20', '2026-09-23']; starts in custom mode. */
+  customRange?: [string | number, string | number];
+  /** Date pickers limited to the loaded days (default true). */
+  customRangeLimit?: boolean;
+  onCustomRange?: (from: string, to: string) => void;
+  /** Visual moving average over N blocks (0 = raw). Readings, cards and totals stay raw. */
+  smoothing?: number;
+  /** Harmony glass panel around the chart (null → theme decides; Harmony: on). */
+  panel?: boolean | null;
+  /** Harmony: load Urbanist from Google Fonts if missing (default true). */
+  loadFonts?: boolean;
   weekDays?: number;
   /** Built-in toolbar (range, stepper, view, ToD scale, Lock Y axis, Export PNG). true/false or per control. */
-  toolbar?: boolean | { range?: boolean; stepper?: boolean; view?: boolean; todScale?: boolean; lock?: boolean; export?: boolean };
+  toolbar?: boolean | { custom?: boolean; dates?: boolean; range?: boolean; stepper?: boolean; view?: boolean; todScale?: boolean; lock?: boolean; export?: boolean };
   /** Crosshair / zone stays where the pointer left the chart ("pinned"); Esc or × clears. Default true. */
   stickyHover?: boolean;
   /** PNG export includes the readout band. Default true. */
@@ -158,8 +175,12 @@ export declare class EnergyFlowChart {
   setOptions(patch: Partial<ChartOptions>): void;
   setView(view: 'timeline' | 'tod'): void;
   setYLock(on: boolean): void;
-  setRangeMode(mode: 'day' | 'week'): void;
-  readonly rangeMode: 'day' | 'week';
+  setRangeMode(mode: 'day' | 'week' | 'custom'): void;
+  readonly rangeMode: 'day' | 'week' | 'custom';
+  /** Show inclusive whole days (switches to custom mode). Accepts 'YYYY-MM-DD' or epoch-ms. */
+  setCustomRange(from: string | number, to: string | number): void;
+  /** Current custom range as inclusive 'YYYY-MM-DD' days, or null. */
+  readonly customRange: [string, string] | null;
   /** Step by whole days (day mode) or by the window length (week mode). */
   step(n: number): void;
   /** Clear a pinned crosshair / zone. */
@@ -304,6 +325,8 @@ export declare function toCSV(data: Dataset, series: Series[], i0?: number, i1?:
 export declare function svgToPNG(svg: SVGSVGElement, background?: string, scale?: number): Promise<Blob>;
 export declare function download(blob: Blob, filename: string): void;
 export declare function injectStyles(doc?: Document): void;
+/** Load Urbanist (Harmony's typeface) from Google Fonts once, unless the page already has it. */
+export declare function injectFonts(doc?: Document): void;
 export declare const icons: Record<string, string>;
 export declare const format: {
   fmtNumber(v: number, digits?: number, locale?: string): string;

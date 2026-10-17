@@ -14,7 +14,7 @@ import { mount } from '../src/mount.js';
 
 /** Chart only. `ref` exposes the EnergyFlowChart instance (setRange, showDay, exportPNG...). */
 export const EnergyFlowChartView = forwardRef(function EnergyFlowChartView(props, ref) {
-  const { data, series, theme = 'energy', mode = 'auto', className, style, onReady, ...options } = props;
+  const { data, series, theme = 'harmony', mode = 'auto', className, style, onReady, ...options } = props;
   const el = useRef(null);
   const inst = useRef(null);
   useImperativeHandle(ref, () => inst.current, []);
@@ -73,7 +73,7 @@ export const EnergyDashboard = forwardRef(function EnergyDashboard({ metrics, ca
  * `ref` exposes the handle: { chart, cards, store, load(), destroy() }.
  */
 export const EnergyFlowBoard = forwardRef(function EnergyFlowBoard(props, ref) {
-  const { data, view = 'timeline', rangeMode = 'day', theme = 'energy', mode = 'auto', showCards = true, cardsClassName, chartClassName, className, style, gap = 14, onReady, ...options } = props;
+  const { data, view = 'timeline', rangeMode, theme = 'harmony', mode = 'auto', showCards = true, cardsClassName, chartClassName, className, style, gap = 14, onReady, ...options } = props;
   const chartEl = useRef(null);
   const cardsEl = useRef(null);
   const [handle, setHandle] = useState(null);
@@ -93,7 +93,10 @@ export const EnergyFlowBoard = forwardRef(function EnergyFlowBoard(props, ref) {
   const first = useRef(true);
   useEffect(() => { if (first.current) { first.current = false; return; } handle?.load(data); }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { handle?.chart.setView(view); }, [handle, view]);
-  useEffect(() => { if (handle && handle.chart.rangeMode !== rangeMode) handle.chart.setRangeMode(rangeMode); }, [handle, rangeMode]);
+  useEffect(() => { if (handle && rangeMode && handle.chart.rangeMode !== rangeMode) handle.chart.setRangeMode(rangeMode); }, [handle, rangeMode]);
+  const cr = options.customRange ? options.customRange.join('|') : '';
+  useEffect(() => { if (handle && cr && handle.chart.customRange?.join('|') !== cr) handle.chart.setCustomRange(...cr.split('|')); }, [handle, cr]);
+  useEffect(() => { if (handle && options.smoothing !== undefined) handle.chart.setOptions({ smoothing: options.smoothing }); }, [handle, options.smoothing]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { handle?.chart.setTheme(theme, mode); }, [handle, theme, mode]);
   useEffect(() => { if (options.yLock !== undefined && handle && handle.chart.opts.yLock !== options.yLock) handle.chart.setYLock(options.yLock); }, [handle, options.yLock]); // eslint-disable-line react-hooks/exhaustive-deps
 

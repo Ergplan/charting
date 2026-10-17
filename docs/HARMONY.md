@@ -177,7 +177,15 @@ const board = await EnergyFlow.mount('#chart', {
 });
 ```
 
-What `theme: 'harmony'` changes: the Harmony skin (pill toolbar, glass readout band, Urbanist, glass cards without the side bar), smooth monotone curves, bands that fade from their top edge, a glowing 2px line on each band's top, a dotted demand line, Harmony Green live dot and outlined time pill. Override any of it per chart: `curve: 'linear' | 'smooth' | 'step'`, `fill: 'solid' | 'gradient'`, `glow: false`.
+What `theme: 'harmony'` changes (the default since charting v1.4):
+- **Skin:** a pill toolbar with the `eg-range` date pills; a glass panel (turn it off with `panel: false` when the page section is already `eg-glass`); a glass readout band with source icons and zero notes; StatTile cards.
+- **Curves:** monotone, with bands that fade from their top edge and a glowing 2px line on each top, plus a dotted demand line.
+- **Cursor:** it rests on the latest block, with value pills above (dashed for demand, solid in the focused source's colour) and an outlined ‹ time › pill that replaces the nearest of the outlined tick pills.
+- **Future:** hatched, labelled "N blocks to go".
+
+Override any of it per chart: `curve: 'linear' | 'smooth' | 'step'`, `fill: 'solid' | 'gradient'`, `glow: false`. Optional `smoothing: 3 | 5 | 9` averages the drawing only; readings stay raw.
+
+Custom date range: the toolbar's **Custom** segment, or `customRange: ['2026-10-01', '2026-10-13']` / `chart.setCustomRange(from, to)`. With `customRangeLimit: false` and `onCustomRange(from, to)`, the page can fetch dates outside the loaded data.
 
 Sources and roles. Give each series a `role` and it gets its Harmony colour:
 

@@ -5,14 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Energy Flow Chart</title>
 <style>
-  :root { --page: #f6f6f3; --panel: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781; --line: rgba(11,11,11,.10); --accent: #b8912f; --accent-ink: #ffffff; }
+  /* page chrome from the ergOS Harmony tokens (design-system/tokens/tokens.json) */
+  :root { --page: #eef2ec; --panel: rgba(255,255,255,.72); --ink: #000b1a; --ink2: #2e3b37; --muted: #4a5955; --line: rgba(0,11,26,.09); --accent: #12723a; --accent-ink: #ffffff; --glow-a: rgba(46,160,90,.16); --glow-b: rgba(28,120,174,.10); }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --page: #0f0f0e; --panel: #1a1a19; --ink: #ffffff; --ink2: #c3c2b7; --muted: #8f8d86; --line: rgba(255,255,255,.10); --accent: #d6b35a; --accent-ink: #1a1a19; }
+    :root:not([data-theme="light"]) { --page: #000b1a; --panel: rgba(255,255,255,.055); --ink: #f2f6f3; --ink2: #c9d3cf; --muted: #9daba6; --line: rgba(255,255,255,.09); --accent: #68e78e; --accent-ink: #03200e; --glow-a: rgba(104,231,142,.13); --glow-b: rgba(92,200,240,.08); }
   }
-  :root[data-theme="dark"] { --page: #0f0f0e; --panel: #1a1a19; --ink: #ffffff; --ink2: #c3c2b7; --muted: #8f8d86; --line: rgba(255,255,255,.10); --accent: #d6b35a; --accent-ink: #1a1a19; }
+  :root[data-theme="dark"] { --page: #000b1a; --panel: rgba(255,255,255,.055); --ink: #f2f6f3; --ink2: #c9d3cf; --muted: #9daba6; --line: rgba(255,255,255,.09); --accent: #68e78e; --accent-ink: #03200e; --glow-a: rgba(104,231,142,.13); --glow-b: rgba(92,200,240,.08); }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { margin: 0; color: var(--ink); font: 14px/1.45 Urbanist, "Avenir Next", "Segoe UI", system-ui, sans-serif; background: radial-gradient(60% 50% at 10% 0%, var(--glow-a), transparent 70%), radial-gradient(50% 40% at 95% 20%, var(--glow-b), transparent 70%), var(--page); background-attachment: fixed; min-height: 100vh; }
   main { max-width: 1320px; margin: 0 auto; padding: 28px 24px 60px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
   header h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
   header p { margin: 0; color: var(--ink2); }
@@ -36,7 +37,7 @@
   .spacer { flex: 1; }
   .dayname { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 112px; text-align: center; font-size: 13px; }
 
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 14px; }
+  .panel { display: grid; gap: 4px; } /* the chart draws its own Harmony glass panel */
   .panel h2 { font-size: 16px; margin: 0 0 2px; }
   .panel .sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
   .hint { color: var(--muted); font-size: 12px; margin: 8px 4px 0; }
@@ -75,6 +76,11 @@
       <button type="button" data-c="linear" aria-pressed="true">Smooth</button>
       <button type="button" data-c="step" aria-pressed="false">Blocks</button>
     </div>
+    <div class="seg" id="smooth" aria-label="Smoothing">
+      <button type="button" data-s="0" aria-pressed="true">Raw</button>
+      <button type="button" data-s="3" aria-pressed="false">Light smoothing</button>
+      <button type="button" data-s="9" aria-pressed="false">Strong</button>
+    </div>
     <label class="chk"><input type="checkbox" id="tod" /> TOD bands</label>
     <label class="chk"><input type="checkbox" id="table" /> Table</label>
     <button class="btn" id="csv" type="button">CSV</button>
@@ -102,7 +108,7 @@
     data: window.ENERGY_DATA,     // { header, rows } from tools/xlsx-to-json.mjs
     cards: '#cards',
     prices: SAMPLE_PRICES,
-    theme: 'energy',
+    theme: 'harmony',             // ergOS Harmony (the default); classic: 'energy'
     height: 440,
     rangeMode: 'day',             // built-in toolbar: 1 day (locked) | 7 days (free zoom)
     onViewChange: (v) => setCopy(v),
@@ -141,6 +147,12 @@
     bands: e.target.checked ? todZones.filter((z) => z.kind === 'peak').map((z) => ({ ...z, label: z.name })) : [],
   });
   $('table').onchange = (e) => chart.setTableVisible(e.target.checked);
+  $('smooth').addEventListener('click', (e) => {
+    const n = e.target.dataset.s;
+    if (n == null) return;
+    setPressed('smooth', 's', n);
+    chart.setOptions({ smoothing: +n }); // visual only: readings, cards and totals stay raw
+  });
   $('csv').onclick = () => chart.exportCSV();
 
   const COPY = {

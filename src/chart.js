@@ -6,9 +6,10 @@ import { getTheme, resolveMode, resolveSeriesColors, applyThemeVars } from './th
 import { indexSpan, nearestIndex, aggregator, parseClock, time } from './data.js';
 import { renderTod, todColumnAt, computeTod, DEFAULT_TOD_ZONES } from './tod.js';
 import { fmtPeriod, fmtPrice, fmtMoney, fmtEnergy, fmtNumber, fmtBlockTime, fmtDay, fmtDayLong, fmtRange, fmtWeekday, niceTicks, timeTicks, isoDay } from './format.js';
-import { injectStyles } from './styles.js';
+import { injectStyles, injectFonts } from './styles.js';
 import { toCSV, download, svgToPNG } from './export.js';
 import { monotonePath, monotoneBack, linearPath, linearBack } from './curves.js';
+import { icons } from './cards.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const { MIN, DAY } = time;
@@ -30,8 +31,30 @@ function h(tag, attrs = {}, parent) {
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+// Harmony layout: a row of value pills above the plot and outlined tick pills below it.
+const HARMONY_MARGIN = { top: 64, bottom: 40 };
+// Source → icon (design-system iconography: solar, wind, hydro, exchange, grid pylon, battery).
+const ROLE_ICON = { renewable: 'solar', solar: 'solar', wind: 'wind', hydro: 'hydro', market: 'exchange', grid: 'pylon', localBattery: 'battery', govBattery: 'battery', surplus: 'surplus', demand: 'bolt' };
+// What a zero reads as in the band (design system: notes explain zeros).
+const ZERO_NOTE = { market: 'Not purchased', grid: 'Not drawn', renewable: 'No generation', solar: 'No generation', wind: 'No generation', hydro: 'No generation', localBattery: 'Idle', govBattery: 'Idle', surplus: 'None' };
+/** Dark or light text for a pill filled with `hex`. */
+function inkOn(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+  if (!m) return '#03200e';
+  const n = parseInt(m[1], 16);
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const L = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return L > 0.33 ? '#03200e' : '#ffffff';
+}
+let measureCtx = null;
+function textWidth(txt, px, weight = 500) {
+  measureCtx ||= document.createElement('canvas').getContext('2d');
+  measureCtx.font = `${weight} ${px}px Urbanist, "Avenir Next", "Segoe UI", system-ui, sans-serif`;
+  return measureCtx.measureText(txt).width;
+}
+
 const DEFAULTS = {
-  theme: 'energy',
+  theme: 'harmony', // ergOS Harmony (design-system/); classic look: 'energy' | 'sunset' | 'contrast'
   mode: 'auto',
   height: 420,
   navigator: true,
@@ -49,7 +72,13 @@ const DEFAULTS = {
   initialRange: null, // [t0, t1] to override the range mode's default window
   rangeMode: 'day', // 'day': one whole calendar day, zoom/pan locked (overview snaps to days)
   //                   'week': last `weekDays` days, free zoom + pan
+  //                   'custom': the whole days in `customRange`, free zoom + pan inside
   weekDays: 7,
+  customRange: null, // ['2026-09-20', '2026-09-23'] (inclusive days) → starts in custom mode
+  customRangeLimit: true, // date pickers limited to the loaded data's days; false → any date (load more via onCustomRange)
+  smoothing: 0, // visual moving average over N blocks (3 light · 5 · 9 strong); readings, cards and totals stay raw
+  panel: null, // glass panel around the chart (null → the theme decides; Harmony: on)
+  loadFonts: true, // Harmony: load Urbanist from Google Fonts if the page doesn't have it (false to self-host)
   // built-in toolbar; true / false, or pick controls: { range, stepper, view, todScale, lock, export }
   toolbar: true,
   stickyHover: true, // crosshair / zone stays where the pointer left it (pin); Esc or × clears
@@ -76,6 +105,11 @@ export class EnergyFlowChart {
     injectStyles(el.ownerDocument);
     this.el = el;
     this.opts = { ...DEFAULTS, ...options, margin: { ...DEFAULTS.margin, ...(options.margin || {}) }, tooltip: { ...(options.tooltip || {}) } };
+    this._userMargin = options.margin || null; // the skin picks margins unless the caller fixed them
+    if (this.opts.customRange) {
+      this.opts.customRange = this._parseRange(...this.opts.customRange);
+      if (!options.rangeMode) this.opts.rangeMode = 'custom';
+    }
     this.store = options.store || createStore();
     this.data = options.data;
     this.series = options.series.map((x) => ({ type: 'area', stack: 'supply', ...x }));
@@ -127,11 +161,12 @@ export class EnergyFlowChart {
       const oldLast = Math.floor((old.t[old.t.length - 1] - 1) / DAY);
       const newLast = Math.floor((data.t[data.t.length - 1] - 1) / DAY);
       if (wasAtEnd && newLast > oldLast) this.showDay(newLast * DAY); // follow into the new day
-    } else if (wasAtEnd && data.t.length) {
+    } else if (this.opts.rangeMode === 'week' && wasAtEnd && data.t.length) {
       const end = data.t[data.t.length - 1];
       const shift = end - old.t[old.t.length - 1];
       this.store.set({ range: [t0 + shift, t1 + shift] });
     }
+    this._disp = null; // smoothed copies are rebuilt for the new data
     this.render();
     this.store.set({ dataRev: (this.store.get().dataRev || 0) + 1 });
   }
@@ -150,6 +185,9 @@ export class EnergyFlowChart {
     this.modeResolved = resolveMode(mode);
     this.t = this.theme[this.modeResolved];
     applyThemeVars(this.el, this.theme, this.modeResolved);
+    if (this.theme.skin === 'harmony' && this.opts.loadFonts !== false) injectFonts(this.el.ownerDocument);
+    if (this.opts.panel ?? this.theme.skin === 'harmony') this.el.dataset.efcPanel = 'glass';
+    else delete this.el.dataset.efcPanel;
     this._resolveColors();
     this._buildLegend();
     if (rerender) this.render();
@@ -159,8 +197,13 @@ export class EnergyFlowChart {
 
   /** 'day' (locked to one calendar day) or 'week' (last N days, free zoom/pan). */
   setRangeMode(mode) {
-    if (mode !== 'day' && mode !== 'week') throw new Error(`setRangeMode: 'day' | 'week', got ${mode}`);
+    if (!['day', 'week', 'custom'].includes(mode)) throw new Error(`setRangeMode: 'day' | 'week' | 'custom', got ${mode}`);
     const prev = this.opts.rangeMode;
+    if (mode === 'custom' && !this.opts.customRange) {
+      // start the custom range from the whole days currently in view
+      const [t0, t1] = this.store.get().range;
+      this.opts.customRange = [Math.floor(t0 / DAY) * DAY, Math.ceil(t1 / DAY) * DAY];
+    }
     this.opts.rangeMode = mode;
     if (mode === 'day') {
       // keep context: the day of the pinned block, else the last day in view
@@ -172,10 +215,57 @@ export class EnergyFlowChart {
     this.opts.onRangeModeChange?.(mode);
   }
   get rangeMode() { return this.opts.rangeMode; }
+
+  /**
+   * Show a custom range of whole days (inclusive): setCustomRange('2026-09-20', '2026-09-23').
+   * Accepts 'YYYY-MM-DD' or epoch-ms. Reversed ends are swapped. Switches to custom mode.
+   */
+  setCustomRange(from, to) {
+    const [a, b] = this._parseRange(from, to);
+    this.opts.customRange = [a, b];
+    const prev = this.opts.rangeMode;
+    this.opts.rangeMode = 'custom';
+    this.store.set({ range: this._clampRange(a, b) });
+    this.render();
+    if (prev !== 'custom') this.opts.onRangeModeChange?.('custom');
+    this.opts.onCustomRange?.(isoDay(a), isoDay(b - 1));
+  }
+  /** The custom range as inclusive 'YYYY-MM-DD' days, or null. */
+  get customRange() { const r = this.opts.customRange; return r ? [isoDay(r[0]), isoDay(r[1] - 1)] : null; }
+
+  _parseRange(from, to) {
+    const day = (v) => (typeof v === 'number' ? Math.floor(v / DAY) * DAY : Date.parse(`${String(v).slice(0, 10)}T00:00:00Z`));
+    let a = day(from);
+    let b = day(to);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) throw new Error(`customRange: unrecognised dates ${from} → ${to}`);
+    if (a > b) [a, b] = [b, a];
+    return [a, b + DAY];
+  }
+
+  /** Display values for a series: raw, or a centred moving average when `smoothing` > 1. */
+  _vals(key) {
+    const raw = this.data.values[key] || [];
+    const n = Math.round(this.opts.smoothing || 0);
+    if (n < 2) return raw;
+    if (!this._disp || this._disp.n !== n || this._disp.data !== this.data) this._disp = { n, data: this.data, cache: {} };
+    if (this._disp.cache[key]) return this._disp.cache[key];
+    const half = Math.floor(n / 2);
+    const out = new Array(raw.length);
+    let sum = 0;
+    let lo = 0;
+    let hi = -1;
+    for (let i = 0; i < raw.length; i++) {
+      // window [i-half, i+half], shrinking at the ends
+      while (hi < Math.min(raw.length - 1, i + half)) sum += raw[++hi] || 0;
+      while (lo < i - half) sum -= raw[lo++] || 0;
+      out[i] = sum / (hi - lo + 1);
+    }
+    return (this._disp.cache[key] = out);
+  }
   /** Step the window by whole days (day mode) or by its own length (week mode). */
   step(n) {
     const [t0, t1] = this.store.get().range;
-    const d = this.opts.rangeMode === 'day' ? DAY : t1 - t0;
+    const d = this.opts.rangeMode === 'day' ? DAY : t1 - t0; // week / custom: by the window length
     this.setRange(t0 + n * d, t1 + n * d);
   }
   /** Clear a pinned crosshair / zone. */
@@ -245,6 +335,8 @@ export class EnergyFlowChart {
 
   setOptions(patch) {
     Object.assign(this.opts, patch);
+    if ('smoothing' in patch) this._disp = null;
+    if ('panel' in patch) this.setTheme(this.opts.theme, this.opts.mode, false);
     this.render();
   }
 
@@ -274,9 +366,10 @@ export class EnergyFlowChart {
     return [...set].sort((a, b) => a - b);
   }
   colors() { return { ...this.colorMap }; }
+  _harmony() { return this.theme?.skin === 'harmony'; }
   /** Drawing style: explicit option, else the theme's `chart` hint, else the classic look. */
   _style(k) {
-    const fallback = { curve: 'linear', fill: 'solid', glow: false, demandDash: null };
+    const fallback = { curve: 'linear', fill: 'solid', glow: false, demandDash: null, restCursor: false, valuePills: false, tickPills: false, futureHatch: false };
     return this.opts[k] ?? this.theme?.chart?.[k] ?? fallback[k];
   }
   getVisibleSpan() { const [t0, t1] = this.store.get().range; return indexSpan(this.data.t, t0, t1); }
@@ -415,7 +508,8 @@ export class EnergyFlowChart {
     if (Array.isArray(r)) return this._clampRange(r[0], r[1]);
     if (r === 'all') return this._clampRange(...this._extent()); // legacy value
     const lastDay = Math.floor((b - 1) / DAY) * DAY; // the calendar day holding the latest sample
-    if (this.opts.rangeMode === 'week') return this._clampRange(lastDay + DAY - this.opts.weekDays * DAY, lastDay + DAY);
+    if (this.opts.rangeMode === 'custom' && this.opts.customRange) return this._clampRange(...this.opts.customRange);
+    if (this.opts.rangeMode !== 'day') return this._clampRange(lastDay + DAY - this.opts.weekDays * DAY, lastDay + DAY);
     return this._clampRange(lastDay, lastDay + DAY);
   }
 
@@ -463,12 +557,36 @@ export class EnergyFlowChart {
       });
       return { wrap, set: (v) => btns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v))) };
     };
-    this.tbRange = seg([['day', '1 day'], ['week', `${this.opts.weekDays} days`]], (v) => this.setRangeMode(v), 'Range');
+    const modes = [['day', '1 day'], ['week', `${this.opts.weekDays} days`]];
+    if (want('custom')) modes.push(['custom', 'Custom']);
+    this.tbRange = seg(modes, (v) => this.setRangeMode(v), 'Range');
     if (!want('range')) this.tbRange.wrap.hidden = true;
     this.topEl = h('div', { class: 'efc-range' }, this.toolbarEl);
     this.prevBtn = h('button', { class: 'efc-step', type: 'button', 'aria-label': 'Previous', text: '‹' }, this.topEl);
-    this.rangeLabel = h('span', { class: 'efc-period', 'aria-live': 'polite' }, this.topEl);
+    // date pills (design-system eg-range): one day in day mode; from → to otherwise, both ends always shown
+    const datePill = (label, onPick, parent) => {
+      const wrap = h('span', { class: 'efc-datewrap' }, parent);
+      const b = h('button', { class: 'efc-date', type: 'button', 'aria-label': label }, wrap);
+      b.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>'; // static markup
+      const txt = h('span', { class: 'efc-date-txt' }, b);
+      const inp = h('input', { type: 'date', tabindex: '-1', 'aria-hidden': 'true' }, b);
+      b.addEventListener('click', () => {
+        try { inp.showPicker(); } catch { inp.focus(); inp.click(); } // native picker; older browsers focus the field
+      });
+      inp.addEventListener('change', () => { if (inp.value) onPick(inp.value); });
+      return { wrap, b, txt, inp };
+    };
+    this.dayPick = datePill('Pick a day', (v) => this.showDay(v), this.topEl);
+    this.rangePick = h('div', { class: 'efc-daterange', role: 'group', 'aria-label': 'Date range' }, this.topEl);
+    this.fromPick = datePill('From date', (v) => this.setCustomRange(v, this._pickTo()), this.rangePick);
+    h('span', { class: 'efc-range-arrow', 'aria-hidden': 'true' }, this.rangePick).innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+    this.toPick = datePill('To date', (v) => this.setCustomRange(this._pickFrom(), v), this.rangePick);
+    this.rangeLabel = h('span', { class: 'efc-period efc-sr', 'aria-live': 'polite' }, this.topEl);
     this.nextBtn = h('button', { class: 'efc-step', type: 'button', 'aria-label': 'Next', text: '›' }, this.topEl);
+    if (!want('dates')) {
+      this.dayPick.wrap.setAttribute('data-off', ''); // stays hidden across renders
+      this.dayPick.wrap.hidden = true; this.rangePick.hidden = true; this.rangeLabel.classList.remove('efc-sr');
+    }
     this.prevBtn.addEventListener('click', () => this.step(-1));
     this.nextBtn.addEventListener('click', () => this.step(1));
     if (!want('stepper')) { this.prevBtn.hidden = true; this.nextBtn.hidden = true; }
@@ -535,13 +653,21 @@ export class EnergyFlowChart {
     for (const ser of ordered) {
       if (ser.legend === false) continue;
       const b = h('button', { type: 'button', class: 'efc-chip', 'aria-pressed': String(!hidden.has(ser.key)), title: 'Click to toggle, hover to highlight' }, this.legendEl);
-      const key = h('span', { class: `efc-key${ser.type === 'line' ? ' is-line' : ''}${ser.type === 'line' && !ser.dash ? ' is-solid' : ''}${ser.pattern === 'hatch' ? ' is-hatch' : ''}` }, b);
-      if (ser.type === 'line') key.style.borderTopColor = this.colorMap[ser.key];
-      else key.style.background = this.colorMap[ser.key];
+      const iconName = ser.icon ?? ROLE_ICON[ser.role || ser.key];
+      if (this._harmony() && ser.type !== 'line' && icons[iconName]) {
+        // Harmony: the source's icon, tinted, in place of a swatch (same icon as its stat tile)
+        const ico = h('span', { class: 'efc-key efc-key-ico', 'aria-hidden': 'true' }, b);
+        ico.style.color = this.colorMap[ser.key];
+        ico.innerHTML = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${icons[iconName]}</svg>`; // library-owned markup
+      } else {
+        const key = h('span', { class: `efc-key${ser.type === 'line' ? ' is-line' : ''}${ser.type === 'line' && !ser.dash ? ' is-solid' : ''}${ser.pattern === 'hatch' ? ' is-hatch' : ''}` }, b);
+        if (ser.type === 'line') key.style.borderTopColor = this.colorMap[ser.key];
+        else key.style.background = this.colorMap[ser.key];
+      }
       h('span', { class: 'efc-chip-label', text: ser.label || ser.key }, b);
       const val = h('b', { class: 'efc-chip-val' }, b);
       // price line only when the dataset carries prices (reserved even when idle → no layout jump)
-      const price = this.data?.prices ? h('span', { class: 'efc-chip-price' }, b) : null;
+      const price = this.data?.prices || this._harmony() ? h('span', { class: 'efc-chip-price' }, b) : null;
       this.chips[ser.key] = { b, val, price };
       b.addEventListener('click', () => this.store.toggle(ser.key));
       b.addEventListener('mouseenter', () => this.store.setHighlight([ser.key]));
@@ -573,7 +699,9 @@ export class EnergyFlowChart {
     if (!this.data || !this.plotEl.isConnected) return;
     const { height } = this.opts;
     // ToD view needs a second axis line for zone names
-    const m = this.opts.view === 'tod' ? { ...this.opts.margin, bottom: this.opts.margin.bottom + 18 } : this.opts.margin;
+    const base = { ...DEFAULTS.margin, ...(this._harmony() ? HARMONY_MARGIN : {}), ...(this._userMargin || {}) };
+    // ToD has no value pills: Harmony keeps only a slim top for the column totals
+    const m = this.opts.view === 'tod' ? { ...base, top: this._harmony() && !this._userMargin?.top ? 40 : base.top, bottom: base.bottom + 18 } : base;
     const W = Math.max(280, this.plotEl.clientWidth || this.el.clientWidth || 800);
     const H = height;
     const pw = W - m.left - m.right;
@@ -624,7 +752,7 @@ export class EnergyFlowChart {
     for (const members of stacks.values()) {
       const base = new Array(j1 - j0 + 1).fill(0);
       for (const ser of members) {
-        const v = this.data.values[ser.key] || [];
+        const v = this._vals(ser.key); // smoothed when `smoothing` > 1 (geometry only)
         const lo = base.slice();
         const hi = base.map((b, k) => b + Math.max(0, v[j0 + k] || 0));
         for (let k = 0; k < base.length; k++) base[k] = hi[k];
@@ -643,6 +771,7 @@ export class EnergyFlowChart {
     const yMax = this.opts.yMax ?? yt.max;
     const y = (v) => m.top + ph - ((v - yMin) / (yMax - yMin)) * ph;
     this.y = y;
+    this.yInv = (py) => yMin + ((m.top + ph - py) / ph) * (yMax - yMin);
     this.j0 = j0;
 
     this._renderDefs();
@@ -650,6 +779,7 @@ export class EnergyFlowChart {
     this._renderGrid(yt.ticks.filter((v) => v <= yMax));
     this._renderDays(t0, t1);
     this._renderSeries(j0, j1);
+    this._renderFuture(t0, t1);
     this._renderAxes(t0, t1);
     this._renderNow(t0, t1);
     this._renderNav();
@@ -678,14 +808,37 @@ export class EnergyFlowChart {
     Object.entries({ x: m.left - 2, y: m.top - 2, width: pw + 4, height: ph + 4, stroke: this.t.accent }).forEach(([k, v]) => this.focusRing.setAttribute(k, v));
 
     const init = this._initialRange();
-    const zoomed = this.opts.rangeMode === 'week' && (Math.abs(t1 - t0 - (init[1] - init[0])) > MIN || Math.abs(t0 - init[0]) > MIN);
+    const zoomed = this.opts.rangeMode !== 'day' && (Math.abs(t1 - t0 - (init[1] - init[0])) > MIN || Math.abs(t0 - init[0]) > MIN);
     this.resetBtn.hidden = !zoomed;
     this.rangeLabel.textContent = this.opts.rangeLabel === false ? '' : fmtPeriod(t0, t1, { long: true });
+    this._syncDatePills(t0, t1);
     this.svg.setAttribute('aria-label', (this.opts.view === 'tod' ? 'Time-of-day columns. ' : '') + this._summary());
 
     this._applyHighlight();
     this._drawHover();
     if (!this.tableEl.hidden) this._renderTable();
+  }
+
+  _pickFrom() { return isoDay(this.store.get().range[0]); }
+  _pickTo() { return isoDay(this.store.get().range[1] - 1); }
+
+  _syncDatePills(t0, t1) {
+    const day = this.opts.rangeMode === 'day';
+    const days = this.days();
+    const lim = this.opts.customRangeLimit !== false && days.length;
+    for (const p of [this.dayPick, this.fromPick, this.toPick]) {
+      if (lim) { p.inp.min = isoDay(days[0]); p.inp.max = isoDay(days[days.length - 1]); }
+      else { p.inp.removeAttribute('min'); p.inp.removeAttribute('max'); }
+    }
+    const datesWanted = !this.dayPick.wrap.hasAttribute('data-off');
+    if (datesWanted) { this.dayPick.wrap.hidden = !day; this.rangePick.hidden = day; }
+    const short = (t) => { const d = new Date(t); return `${d.getUTCDate()} ${'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+    this.dayPick.txt.textContent = fmtDayLong(t0);
+    this.dayPick.inp.value = isoDay(t0);
+    this.fromPick.txt.textContent = short(t0);
+    this.fromPick.inp.value = isoDay(t0);
+    this.toPick.txt.textContent = short(t1 - 1);
+    this.toPick.inp.value = isoDay(t1 - 1);
   }
 
   _summary() {
@@ -699,9 +852,13 @@ export class EnergyFlowChart {
     const { m, pw, ph } = this.dim;
     const clip = s('clipPath', { id: `efc-clip-${this._uid}` }, this.defs);
     s('rect', { x: m.left, y: m.top - 12, width: pw, height: ph + 13 }, clip);
-    if (this._style('glow')) {
+    if (this._style('glow') || this._style('valuePills')) {
       const fl = s('filter', { id: `efc-glow-${this._uid}`, x: '-5%', y: '-40%', width: '110%', height: '180%' }, this.defs);
       s('feGaussianBlur', { stdDeviation: 4 }, fl);
+    }
+    if (this._style('futureHatch')) {
+      const p = s('pattern', { id: `efc-future-${this._uid}`, width: 7, height: 7, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(135)' }, this.defs);
+      s('line', { x1: 0, y1: 0, x2: 0, y2: 7, stroke: this.t.ink, 'stroke-opacity': 0.12, 'stroke-width': 1.5 }, p);
     }
     for (const ser of this.series) {
       if (ser.pattern !== 'hatch') continue;
@@ -755,13 +912,13 @@ export class EnergyFlowChart {
     for (let d = first; d < t1; d += DAY) {
       const xd = this.x(d);
       if (d > t0) {
-        s('line', { x1: Math.round(xd) + 0.5, x2: Math.round(xd) + 0.5, y1: m.top - 18, y2: m.top + ph, stroke: this.t.axis, 'stroke-dasharray': '2 3' }, this.gDays);
+        s('line', { x1: Math.round(xd) + 0.5, x2: Math.round(xd) + 0.5, y1: this._harmony() ? 4 : m.top - 18, y2: m.top + ph, stroke: this.t.axis, 'stroke-dasharray': '2 3' }, this.gDays);
       }
       const lx = Math.max(m.left, xd) + 6;
       const room = Math.min(m.left + pw - reserve, this.x(d + DAY)) - lx;
       if (room < 46) continue;
       const label = pxPerDay > 150 ? fmtDayLong(d + 1) : pxPerDay > 70 ? `${fmtWeekday(d + 1)} ${fmtDay(d + 1)}` : fmtDay(d + 1);
-      s('text', { x: lx, y: m.top - 10, 'font-size': 11.5, 'font-weight': 600, fill: this.t.ink2 }, this.gDays).textContent = label;
+      s('text', { x: lx, y: this._harmony() ? 14 : m.top - 10, 'font-size': 11.5, 'font-weight': 600, fill: this.t.ink2 }, this.gDays).textContent = label;
     }
   }
 
@@ -846,7 +1003,7 @@ export class EnergyFlowChart {
       }
     }
     for (const ser of this.lineSeries) {
-      const v = (this.data.values[ser.key] || []).slice(j0, j1 + 1);
+      const v = this._vals(ser.key).slice(j0, j1 + 1);
       const pts = this._pathPoints(v, j0);
       if (!pts.length) continue;
       const d = fwd(pts);
@@ -862,6 +1019,23 @@ export class EnergyFlowChart {
   _renderAxes(t0, t1) {
     this.gAxes.replaceChildren();
     const { m, pw, ph } = this.dim;
+    this._ticks = [];
+    if (this._style('tickPills')) {
+      // outlined pills, thinned to fit (never overlapping); the cursor's pill replaces the nearest one
+      const { ticks, step } = timeTicks(t0, t1, pw, 74);
+      for (const t of ticks) {
+        const xx = this.x(t);
+        if (xx < m.left - 1 || xx > m.left + pw + 1) continue;
+        const label = step >= DAY || t % DAY === 0 ? fmtDay(t) : fmtBlockTime(t);
+        const w = Math.max(48, textWidth(label, 11, 500) + 20);
+        const px = clamp(xx - w / 2, m.left - 8, m.left + pw + 8 - w);
+        const g = s('g', { class: 'efc-tick' }, this.gAxes);
+        s('rect', { x: px, y: m.top + ph + 9, width: w, height: 22, rx: 11, fill: 'none', stroke: this.t.axis, 'stroke-width': 1 }, g);
+        s('text', { x: px + w / 2, y: m.top + ph + 24, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 500, fill: this.t.muted, style: 'font-variant-numeric: tabular-nums' }, g).textContent = label;
+        this._ticks.push({ x: px + w / 2, w, g });
+      }
+      return;
+    }
     const { ticks, step } = timeTicks(t0, t1, pw, 62);
     for (const t of ticks) {
       const xx = Math.round(this.x(t)) + 0.5;
@@ -874,7 +1048,7 @@ export class EnergyFlowChart {
   }
 
   _renderNow(t0, t1) {
-    this.gNow.replaceChildren();
+    for (const el of [...this.gNow.children]) if (!el.classList.contains('efc-future')) el.remove();
     const live = this.opts.live;
     if (!live) return;
     const key = live.series || this.lineSeries[0]?.key;
@@ -892,14 +1066,14 @@ export class EnergyFlowChart {
   /** y-value at index i where series `key` is drawn (stack top for areas). */
   _topValue(key, i) {
     const L = this.layers.find((l) => l.ser.key === key);
-    if (!L) return this.data.values[key]?.[i] ?? 0;
+    if (!L) return this._vals(key)[i] ?? 0;
     const cached = L.hi[i - this.j0];
     if (cached != null) return cached;
     // index outside the last rendered span (hover set before the next frame): sum the stack directly
     let top = 0;
     for (const l of this.layers) {
       if (l.ser.stack !== L.ser.stack) continue;
-      top += Math.max(0, this.data.values[l.ser.key]?.[i] || 0);
+      top += Math.max(0, this._vals(l.ser.key)[i] || 0);
       if (l === L) break;
     }
     return top;
@@ -931,21 +1105,37 @@ export class EnergyFlowChart {
       this._fillBand();
       return;
     }
-    const i = this.store.get().hover;
+    const hovered = this.store.get().hover;
+    // Harmony: at rest the cursor sits on the latest block in view (design system: "a cursor that rests on the latest block")
+    const resting = hovered == null && this._style('restCursor') && this.span && this.span[1] >= this.span[0];
+    const i = resting ? this.span[1] : hovered;
     const t = i == null ? null : this.data.t[i];
     const [t0, t1] = this.store.get().range;
+    for (const tk of this._ticks || []) tk.g.removeAttribute('opacity');
     if (i != null && t >= t0 && t <= t1) {
       const { m, ph } = this.dim;
       const xx = Math.round(this.x(t)) + 0.5;
-      s('line', { x1: xx, x2: xx, y1: m.top, y2: m.top + ph, stroke: this.t.ink2, 'stroke-width': 1, 'stroke-opacity': 0.55 }, this.gCross);
+      const harmony = this._style('tickPills');
+      s('line', { x1: xx, x2: xx, y1: harmony ? m.top - 12 : m.top, y2: m.top + ph, stroke: harmony ? this.t.ink : this.t.ink2, 'stroke-width': 1, 'stroke-opacity': harmony ? 0.35 : 0.55 }, this.gCross);
       // time pill at the foot of the crosshair, over the axis labels
       const label = fmtBlockTime(t);
-      if (this.theme.skin === 'harmony') {
-        // outlined pill, like the design system's cursor time pill
-        const pw2 = 52;
-        const px = clamp(xx - pw2 / 2, m.left, m.left + this.dim.pw - pw2);
-        s('rect', { x: px, y: m.top + ph + 4, width: pw2, height: 22, rx: 11, fill: this.t.surface, stroke: this.t.ink, 'stroke-width': 1.5 }, this.gCross);
-        s('text', { x: px + pw2 / 2, y: m.top + ph + 19, 'text-anchor': 'middle', 'font-size': 11.5, 'font-weight': 700, fill: this.t.ink, style: 'font-variant-numeric: tabular-nums' }, this.gCross).textContent = label;
+      if (harmony) {
+        // outlined pill with ‹ › that replaces the nearest tick pill (design system cursor)
+        const pw2 = 84;
+        const px = clamp(xx - pw2 / 2, m.left - 8, m.left + this.dim.pw + 8 - pw2);
+        for (const tk of this._ticks || []) if (Math.abs(tk.x - (px + pw2 / 2)) < (tk.w + pw2) / 2 + 2) tk.g.setAttribute('opacity', 0);
+        const g = s('g', { class: 'efc-timepill' }, this.gCross);
+        s('rect', { x: px, y: m.top + ph + 7, width: pw2, height: 26, rx: 13, fill: this.t.surface, stroke: this.t.ink, 'stroke-width': 1.5 }, g);
+        s('text', { x: px + pw2 / 2, y: m.top + ph + 24.5, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 700, fill: this.t.ink, style: 'font-variant-numeric: tabular-nums' }, g).textContent = label;
+        for (const [dx, glyph, d] of [[12, '‹', -1], [pw2 - 12, '›', 1]]) {
+          const a = s('text', { x: px + dx, y: m.top + ph + 25, 'text-anchor': 'middle', 'font-size': 15, fill: this.t.muted, class: 'efc-timepill-step', 'data-step': d, style: 'cursor:pointer' }, g);
+          a.textContent = glyph;
+          a.addEventListener('click', () => {
+            const [a0, a1] = this.span;
+            this.store.set({ hover: clamp(i + d, a0, a1) });
+          });
+        }
+        this._drawValuePills(i, xx);
       } else {
         const pw2 = 42;
         const px = clamp(xx - pw2 / 2, m.left, m.left + this.dim.pw - pw2);
@@ -959,12 +1149,69 @@ export class EnergyFlowChart {
         s('circle', { cx: xx, cy: this.y(this._topValue(L.ser.key, i)), r: 4, fill: this.colorMap[L.ser.key], stroke: this.t.surface, 'stroke-width': 2 }, this.gCross);
       }
       for (const ser of this.lineSeries) {
-        const v = this.data.values[ser.key]?.[i] ?? 0;
+        const v = this._vals(ser.key)[i] ?? 0; // dot sits on the drawn line
         s('circle', { cx: xx, cy: this.y(v), r: 4.5, fill: this.t.surface, stroke: this.colorMap[ser.key], 'stroke-width': 2.5 }, this.gCross);
       }
     }
     this._fillBand();
-    this._highlightTableRow(i);
+    this._highlightTableRow(hovered);
+  }
+
+  /** Harmony value pills above the plot: dashed pill for demand, solid pill in the focused source's colour. */
+  _drawValuePills(i, xx) {
+    if (!this._style('valuePills')) return;
+    const { m, pw } = this.dim;
+    const fmtKW = (v) => `${fmtNumber(v, 0, this.opts.locale)} ${this.opts.unit}`;
+    const pills = [];
+    const demand = this.lineSeries.find((x) => x.role === 'demand' || x.key === 'demand') || this.lineSeries[0];
+    if (demand) pills.push({ label: demand.label || demand.key, value: fmtKW(this.data.values[demand.key]?.[i] ?? 0), dashed: true });
+    // focus: the band under the pointer, else the biggest contributor at this block
+    let focus = this.layers.find((l) => l.ser.key === this._focusKey && (this.data.values[l.ser.key]?.[i] || 0) > 0);
+    if (!focus) {
+      let best = 0;
+      for (const l of this.layers) { const v = this.data.values[l.ser.key]?.[i] || 0; if (v > best && l.ser.countInTotal !== false) { best = v; focus = l; } }
+    }
+    if (focus) pills.push({ label: focus.ser.label || focus.ser.key, value: fmtKW(this.data.values[focus.ser.key]?.[i] || 0), color: this.colorMap[focus.ser.key], key: focus.ser.key });
+    if (!pills.length) return;
+    const H = 26;
+    const gap = 6;
+    for (const p of pills) p.w = textWidth(p.label, 11.5, 500) + 6 + textWidth(p.value, 12.5, 700) + 26;
+    const total = pills.reduce((a, p) => a + p.w, 0) + gap * (pills.length - 1);
+    let x = clamp(xx - total / 2, m.left - 8, m.left + pw + 8 - total);
+    const y = m.top - 42;
+    for (const p of pills) {
+      const g = s('g', { class: `efc-vpill${p.dashed ? ' is-ref' : ' is-focus'}`, 'data-key': p.key || null }, this.gCross);
+      if (p.dashed) s('rect', { x, y, width: p.w, height: H, rx: H / 2, fill: this.t.surface, stroke: this.t.ink, 'stroke-opacity': 0.55, 'stroke-width': 1.25, 'stroke-dasharray': '3 3' }, g);
+      else {
+        s('rect', { x: x - 2, y: y - 2, width: p.w + 4, height: H + 4, rx: H / 2 + 2, fill: p.color, 'fill-opacity': 0.25, filter: `url(#efc-glow-${this._uid})` }, g);
+        s('rect', { x, y, width: p.w, height: H, rx: H / 2, fill: p.color }, g);
+      }
+      const ink = p.dashed ? this.t.ink : inkOn(p.color);
+      const tl = s('text', { x: x + 13, y: y + 17, 'font-size': 11.5, 'font-weight': 500, fill: ink, 'fill-opacity': p.dashed ? 0.7 : 0.8 }, g);
+      tl.textContent = p.label;
+      s('text', { x: x + 13 + textWidth(p.label, 11.5, 500) + 6, y: y + 17, 'font-size': 12.5, 'font-weight': 700, fill: ink, style: 'font-variant-numeric: tabular-nums' }, g).textContent = p.value;
+      x += p.w + gap;
+    }
+  }
+
+  /** Hatched zone after the latest block, labelled with the blocks still to come. */
+  _renderFuture(t0, t1) {
+    this.gNow.replaceChildren();
+    if (!this._style('futureHatch') || !this.data.t.length) return;
+    const last = this.data.t[this.data.t.length - 1];
+    if (last >= t1 || last < t0) return;
+    const { m, ph, pw } = this.dim;
+    const end = Math.min(t1, Math.ceil(last / DAY) * DAY); // the rest of the latest day
+    const xa = this.x(last);
+    const xb = Math.min(m.left + pw, this.x(end));
+    if (xb - xa < 2) return;
+    this._futureEl = s('g', { class: 'efc-future' }, this.gNow);
+    s('rect', { x: xa, y: m.top, width: xb - xa, height: ph, fill: `url(#efc-future-${this._uid})` }, this._futureEl);
+    s('line', { x1: xa, x2: xa, y1: m.top, y2: m.top + ph, stroke: this.t.ink, 'stroke-opacity': 0.25, 'stroke-dasharray': '2 4' }, this._futureEl);
+    const n = Math.round((end - last) / (this.data.stepMinutes * MIN));
+    if (n > 0 && xb - xa > 96) {
+      s('text', { x: xb - 8, y: m.top + 16, 'text-anchor': 'end', 'font-size': 11.5, fill: this.t.muted }, this._futureEl).textContent = `${n} block${n === 1 ? '' : 's'} to go`;
+    }
   }
 
   /**
@@ -1007,7 +1254,8 @@ export class EnergyFlowChart {
         val = (k) => this.data.values[k]?.[i] ?? 0;
         priceOf = (k) => this.data.prices?.[k]?.[i] ?? NaN;
         whenMain = `${fmtDay(this.data.t[i] - 1)} · ${fmtBlockTime(this.data.t[i])}`;
-        whenSub = hov ? (this.data.block ? `Block ${this.data.block[i]}` : '') : 'Latest in view';
+        const perDay = Math.round(1440 / this.data.stepMinutes);
+        whenSub = hov ? (this.data.block ? `Block ${this.data.block[i]} of ${perDay}` : '') : 'Latest in view';
       }
       live = hov;
     }
@@ -1030,8 +1278,13 @@ export class EnergyFlowChart {
       if (c.price) {
         const pr = v ? priceOf(k) : NaN;
         const ser = this.series.find((x) => x.key === k);
-        // demand and exported surplus aren't purchases: leave the line blank (height is kept)
-        c.price.textContent = Number.isFinite(pr) ? `@ ${fmtPrice(pr, this.opts.priceFormat)}` : this.data.prices?.[k] ? '@ –' : ser?.type === 'line' ? '\u00a0' : 'not purchased';
+        let note;
+        if (v === 0 && ser?.type !== 'line') note = ser.zeroNote ?? ZERO_NOTE[ser.role || ser.key] ?? 'None'; // zeros explain themselves
+        else if (Number.isFinite(pr)) note = `@ ${fmtPrice(pr, this.opts.priceFormat)}`;
+        else if (this.data.prices?.[k]) note = '@ –';
+        else if (ser?.type === 'line' || !this.data.prices) note = ser?.note ?? '\u00a0'; // height kept, no jump
+        else note = 'Not purchased'; // priced data, unpriced source (e.g. exported surplus)
+        c.price.textContent = note;
       }
     }
 
@@ -1103,6 +1356,7 @@ export class EnergyFlowChart {
       const [px] = pos(e);
       if (this.opts.view === 'tod') { zoneAt(px); return; }
       hoverAt(px);
+      if (this._style('valuePills')) this._focusAt(pos(e)[1]);
       if (drag) {
         drag.x1 = clamp(px, this.dim.m.left, this.dim.m.left + this.dim.pw);
         if (Math.abs(drag.x1 - drag.x0) > 4) this._drawBrush(drag.x0, drag.x1);
@@ -1130,11 +1384,16 @@ export class EnergyFlowChart {
     hit.addEventListener('pointercancel', end);
     hit.addEventListener('pointerleave', () => {
       this._pointerInside = false;
+      if (this._focusKey) { this._focusKey = null; this.store.setHighlight(null); }
       if (drag) return;
       if (this.opts.stickyHover) this._fillBand(); // keep the crosshair where it is (pinned) → export / share it
       else this.clearPin();
     });
-    hit.addEventListener('dblclick', () => { if (this.opts.view !== 'tod' && this.opts.rangeMode === 'week') this.showAll(); });
+    hit.addEventListener('dblclick', () => {
+      if (this.opts.view === 'tod' || this.opts.rangeMode === 'day') return;
+      if (this.opts.rangeMode === 'custom') this.store.set({ range: this._initialRange() }); // back to the chosen days
+      else this.showAll();
+    });
 
     hit.addEventListener('wheel', (e) => {
       if (this.opts.rangeMode === 'day') return; // locked: let the page scroll
@@ -1183,9 +1442,9 @@ export class EnergyFlowChart {
         ArrowLeft: () => this.store.set({ hover: clamp(i - (e.shiftKey ? 4 : 1), i0, i1) }),
         Home: () => this.store.set({ hover: i0 }),
         End: () => this.store.set({ hover: i1 }),
-        '+': () => this.opts.rangeMode === 'week' && this.setRange(t0 + span / 4, t1 - span / 4),
-        '=': () => this.opts.rangeMode === 'week' && this.setRange(t0 + span / 4, t1 - span / 4),
-        '-': () => this.opts.rangeMode === 'week' && this.setRange(t0 - span / 2, t1 + span / 2),
+        '+': () => this.opts.rangeMode !== 'day' && this.setRange(t0 + span / 4, t1 - span / 4),
+        '=': () => this.opts.rangeMode !== 'day' && this.setRange(t0 + span / 4, t1 - span / 4),
+        '-': () => this.opts.rangeMode !== 'day' && this.setRange(t0 - span / 2, t1 + span / 2),
         Escape: () => this.clearPin(),
         PageUp: () => this.step(-1),
         PageDown: () => this.step(1),
@@ -1199,6 +1458,25 @@ export class EnergyFlowChart {
     });
     hit.addEventListener('focus', () => { if (this.opts.view !== 'tod' && this.store.get().hover == null && this.span[1] >= this.span[0]) this.store.set({ hover: this.span[1] }); });
     hit.addEventListener('blur', () => { if (!this.opts.stickyHover) this.clearPin(); });
+  }
+
+  /** The stacked band under pointer height `py` at the hovered block; it becomes the focus pill and dims the rest. */
+  _focusAt(py) {
+    const i = this.store.get().hover;
+    if (i == null || !this.yInv) return;
+    const v = this.yInv(py);
+    let key = null;
+    let base = 0;
+    for (const l of this.layers) {
+      if (l.ser.stack === false) continue;
+      const val = Math.max(0, this._vals(l.ser.key)[i] || 0);
+      if (val > 0 && v >= base && v <= base + val) { key = l.ser.key; break; }
+      base += val;
+    }
+    if (key === this._focusKey) return;
+    this._focusKey = key;
+    this.store.setHighlight(key ? [key] : null); // redraws pills via the store
+    this._drawHover();
   }
 
   _describeIndex(i) {

@@ -167,7 +167,16 @@ export function renderTod(chart) {
         // 4px rounded top on the uppermost segment only; square elsewhere
         const r = isTop ? Math.min(4, (y0 - y1) / 2, w / 2) : 0;
         const d = `M${xa},${y0}V${y1 + r}${r ? `Q${xa},${y1} ${xa + r},${y1}` : ''}H${xb - r}${r ? `Q${xb},${y1} ${xb},${y1 + r}` : ''}V${y0}Z`;
-        s('path', { d, fill, 'fill-opacity': 0.92, class: 'efc-area', 'data-key': sg.ser.key }, g);
+        if (chart._style('fill') === 'gradient' && sg.ser.pattern !== 'hatch') {
+          // Harmony glass: each segment fades from its top edge, with a 2px line in its colour on top
+          const c = chart.colorMap[sg.ser.key];
+          const id = `efc-todg-${chart._uid}-${ci}-${sg.ser.key}`;
+          const lg = s('linearGradient', { id, x1: 0, y1: y1, x2: 0, y2: y0, gradientUnits: 'userSpaceOnUse' }, chart.defs);
+          s('stop', { offset: 0, 'stop-color': c, 'stop-opacity': 0.78 }, lg);
+          s('stop', { offset: 1, 'stop-color': c, 'stop-opacity': 0.32 }, lg);
+          s('path', { d, fill: `url(#${id})`, class: 'efc-area', 'data-key': sg.ser.key }, g);
+          s('line', { x1: xa + r, x2: xb - r, y1: y1 + 1, y2: y1 + 1, stroke: c, 'stroke-width': 2, 'stroke-linecap': 'round', class: 'efc-area', 'data-key': sg.ser.key }, g);
+        } else s('path', { d, fill, 'fill-opacity': 0.92, class: 'efc-area', 'data-key': sg.ser.key }, g);
         if (si > 0) s('line', { x1: xa, x2: xb, y1: y0, y2: y0, stroke: t.surface, 'stroke-width': 1.5, class: 'efc-area', 'data-key': sg.ser.key }, chart.gEdges);
         // in-segment value label when there is room
         if (y0 - y1 > 30 && w > 64) {

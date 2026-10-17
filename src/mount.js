@@ -110,7 +110,10 @@ export function autoMount(root = document) {
       view: d.view,
       height: d.height ? +d.height : undefined,
       yLock: d.yLock != null ? d.yLock !== 'false' : undefined, // data-y-lock
-      rangeMode: d.range, // data-range="day" | "week"
+      rangeMode: d.range, // data-range="day" | "week" | "custom"
+      customRange: d.from && d.to ? [d.from, d.to] : undefined, // data-from="2026-09-20" data-to="2026-09-23"
+      smoothing: d.smoothing ? +d.smoothing : undefined, // data-smoothing="3"
+      panel: d.panel === 'false' ? false : undefined,
       toolbar: d.toolbar === 'false' ? false : undefined,
       refreshSeconds: d.refresh ? +d.refresh : undefined,
     }).catch((e) => { console.error(e); el.textContent = 'Chart failed to load.'; });

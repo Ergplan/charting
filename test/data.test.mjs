@@ -140,3 +140,20 @@ test('ToD view reproduces the TOD export (24 Sep pair) over all 7 days', async (
     assert.ok(Math.abs(res[zi].energy.market - r[6]) < 1, `${r[0]} market`);
   });
 });
+
+test('Harmony is the default theme; its chart style follows the design system', async () => {
+  const { getTheme, themes } = await import('../src/themes.js');
+  assert.equal(getTheme(undefined).name, 'harmony');
+  assert.equal(getTheme('no-such-theme').name, 'harmony');
+  const c = themes.harmony.chart;
+  for (const k of ['restCursor', 'valuePills', 'tickPills', 'futureHatch', 'glow']) assert.equal(c[k], true, k);
+  assert.equal(c.curve, 'smooth');
+  assert.ok(!themes.energy.chart?.valuePills, 'classic theme keeps the classic look');
+  // glass tokens straight from design-system/tokens/tokens.json
+  const tokens = JSON.parse((await import('node:fs')).readFileSync(new URL('../design-system/tokens/tokens.json', import.meta.url)));
+  const tok = (n) => tokens.color.tokens.find((t) => t.name === n).value;
+  assert.equal(themes.harmony.dark.glass, tok('glass').dark);
+  assert.equal(themes.harmony.light.glass, tok('glass').light);
+  assert.equal(themes.harmony.dark.glassStrong, tok('glass-strong').dark);
+  assert.equal(themes.harmony.dark.well.toLowerCase(), tok('surface-2').dark.toLowerCase());
+});

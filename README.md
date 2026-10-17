@@ -16,6 +16,15 @@ A zero-dependency charting library for **energy consumption and generation time 
 
 > **ergOS Harmony.** This repo also holds the ergOS design system (`design-system/`): tokens, the `eg-` CSS component kit, the `window.ErgOS` runtime and the redesigned screens. Start with the developer guide, [`docs/HARMONY.md`](docs/HARMONY.md), the Next.js demo app (`npm run demo:next` → <http://localhost:3000>, source in `apps/ergos-demo/`) and the live gallery (`npm run demo` → `/design-system/gallery/`). The jouleWise logo in Harmony glass is in `design-system/assets/logo/`. The repo will be renamed **ergOSUI**; links redirect.
 
+**v1.4: the ergOS Harmony design system is the default look.** Every chart now renders in Harmony out of the box:
+- a glass panel and glass readout band
+- StatTile cards: tinted source icon, period, light 32px figure, fading sparkline, footnote
+- monotone curves with glowing top edges
+- value pills above the cursor, a cursor that rests on the latest block, and outlined tick pills
+- a hatched "blocks to go" zone
+
+Also new: **a custom date range** (Custom in the toolbar, two date pills) and optional **smoothing**. The classic look is still one option away: `theme: 'energy'`.
+
 It works on **any website**: plain HTML with one `<script>` tag, React, Next.js, Vue, Angular, WordPress… There is nothing to configure if your data uses the standard *Energy Supply Chart* export columns.
 
 ---
@@ -45,7 +54,7 @@ It works on **any website**: plain HTML with one `<script>` tag, React, Next.js,
 <div id="cards"></div>
 <div data-energy-flow data-src="/api/energy.json" data-cards="#cards"></div>
 
-<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.3.0/dist/energy-flow-chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.4.0/dist/energy-flow-chart.min.js"></script>
 ```
 
 That's all. The script finds every `[data-energy-flow]` element and mounts a chart on it.
@@ -94,7 +103,7 @@ ES-module sites can import the single-file module instead:
 ### C. React / Next.js
 
 ```bash
-npm i github:Ergplan/charting#v1.3.0       # package name: energy-flow-chart
+npm i github:Ergplan/charting#v1.4.0       # package name: energy-flow-chart
 ```
 
 ```jsx
@@ -219,17 +228,52 @@ prices: (ds) => ({ market: rawRows.map((r) => +r['IEX Price (₹/kWh)']) })
 
 ## 4. Range modes, views, pinning and export
 
-### 1-day and 7-day modes
+### 1 day, 7 days and Custom
 
-The toolbar switches between them, or use `rangeMode: 'day' | 'week'` / `chart.setRangeMode()`.
+The toolbar switches between them, or use `rangeMode: 'day' | 'week' | 'custom'` / `chart.setRangeMode()`.
 
-| | **1 day** (`'day'`, default) | **7 days** (`'week'`) |
-|---|---|---|
-| window | exactly one calendar day | last `weekDays` (7) days |
-| zoom (drag, ⌘/Ctrl+scroll, + / −) | locked | free |
-| overview strip | fixed one-day window, snaps to whole days | drag to pan, handles to resize |
-| ‹ › stepper / PageUp / PageDown | previous / next day | previous / next window |
-| cards and toolbar label | "Sat 26 Sep" | "20–26 Sep", or the exact zoomed window, e.g. "24 Sep 06:00–16:00" |
+| | **1 day** (`'day'`, default) | **7 days** (`'week'`) | **Custom** (`'custom'`) |
+|---|---|---|---|
+| window | exactly one calendar day | last `weekDays` (7) days | the whole days you pick, from → to (inclusive) |
+| date control | one date pill (📅 Sat, 26 Sep 2026) opening a date picker | from → to pill showing both ends | from → to pill; each end opens a date picker |
+| zoom (drag, ⌘/Ctrl+scroll, + / −) | locked | free | free, inside the chosen days; double-click returns to them |
+| overview strip | fixed one-day window, snaps to whole days | drag to pan, handles to resize | as 7 days |
+| ‹ › stepper / PageUp / PageDown | previous / next day | previous / next window | previous / next window |
+| cards and toolbar label | "Sat 26 Sep" | "20–26 Sep" or the exact zoomed window | "21–23 Sep" or the exact zoomed window |
+
+**Custom date range.** Pick **Custom** in the toolbar, or change either end of the from → to pill (picking an end switches to Custom). The pill follows the design system's `eg-range`: two date buttons joined by an arrow, with both ends always shown. In code:
+
+```js
+EnergyFlow.mount('#chart', { url, customRange: ['2026-09-20', '2026-09-23'] });   // starts in Custom
+chart.setCustomRange('2026-09-21', '2026-09-23');   // 'YYYY-MM-DD' or epoch-ms; reversed ends are swapped
+chart.customRange;                                  // ['2026-09-21', '2026-09-23']
+```
+```html
+<div data-energy-flow data-src="/api/energy" data-from="2026-09-20" data-to="2026-09-23"></div>
+```
+
+The date pickers are limited to the days in the loaded data. When your API can serve other dates, pass `customRangeLimit: false` and load them in `onCustomRange(from, to)`:
+
+```js
+const board = await EnergyFlow.mount('#chart', {
+  url: '/api/energy?from=2026-09-20&to=2026-09-26',
+  customRangeLimit: false,
+  onCustomRange: (from, to) => board.load(`/api/energy?from=${from}&to=${to}`),
+});
+```
+
+Hide the Custom segment with `toolbar: { custom: false }`, or all the date pills with `toolbar: { dates: false }`.
+
+### Smoothing
+
+Harmony always draws monotone curves: smooth, but never overshooting the data. For noisy 15-minute data you can also smooth the **drawing** with a centred moving average over N blocks:
+
+```js
+smoothing: 3   // light; 5 medium; 9 strong; 0 (default) raw
+chart.setOptions({ smoothing: 5 });
+```
+
+Smoothing changes only the geometry: the areas, the demand line and the crosshair dots. The band readings, the cards, the totals, the ToD view and CSV export always use the raw meter values. Attribute: `data-smoothing="3"`.
 
 In 1-day mode `setRange()` snaps to the day under the window's centre. `showAll()` and `showLast(>24)` switch to 7-day mode.
 
@@ -327,7 +371,7 @@ Layout: the cards container is a CSS grid. Set columns yourself, e.g. `#cards { 
 theme: 'energy' | 'sunset' | 'contrast' | 'harmony' | 'volt' | 'verdant' | 'aurora',  mode: 'auto' | 'light' | 'dark'
 ```
 
-**ergOS Harmony** (`harmony`, `volt`, `verdant`, `aurora`) is the ergOS design system's look: Blue Charcoal ground, Harmony Green accent, the Harmony skin (pill toolbar, glass readout band and cards, Urbanist), smooth monotone curves, bands that fade from a glowing top edge, and a dotted demand line. It adds the source roles `solar`, `wind`, `hydro` and the price roles used by the price charts. Override the drawing per chart with `curve: 'linear' | 'smooth' | 'step'`, `fill: 'solid' | 'gradient'` and `glow`. See [`docs/HARMONY.md`](docs/HARMONY.md).
+**ergOS Harmony** (`harmony`, the default since v1.4, plus `volt`, `verdant`, `aurora`) is the ergOS design system's look, built from `design-system/tokens/tokens.json`: Blue Charcoal ground, Harmony Green accent, the Harmony skin (pill toolbar, glass readout band and cards, Urbanist), smooth monotone curves, bands that fade from a glowing top edge, and a dotted demand line. It adds the source roles `solar`, `wind`, `hydro` and the price roles used by the price charts. Override the drawing per chart with `curve: 'linear' | 'smooth' | 'step'`, `fill: 'solid' | 'gradient'` and `glow`. See [`docs/HARMONY.md`](docs/HARMONY.md).
 
 `mode: 'auto'` follows `<html data-theme="dark|light">` first, then the OS setting.
 
@@ -350,7 +394,22 @@ A series picks its colour in this order:
 
 The built-in themes are checked for colour-blind separation between neighbouring stack layers in both modes. If you define your own, keep adjacent stack colours clearly distinct.
 
-Fonts and chrome follow CSS variables on the chart element: `--efc-font`, `--efc-surface`, `--efc-ink`, `--efc-accent`, …
+Harmony follows the design system's SupplyChart and StatTile rules:
+
+| | what you see | option |
+|---|---|---|
+| panel | the chart sits on a glass panel (glass + `blur(22px) saturate(140%)` + hairline + top light, 28px radius) | `panel: false` when your page already supplies the glass card |
+| cursor | rests on the latest block; the time pill (‹ 15:30 ›) replaces the nearest tick; ‹ › step one block | theme `chart.restCursor` |
+| value pills | dashed pill for demand, solid pill in the colour of the band under the pointer; hovering a band dims the others | theme `chart.valuePills` |
+| ticks | outlined pills, thinned so they never overlap | theme `chart.tickPills` |
+| future | hatched after the latest block, labelled "34 blocks to go" | theme `chart.futureHatch` |
+| band | source icons, "Block 38 of 96", notes that explain zeros ("Not purchased", "Idle", "No generation"), "@ ₹/kWh" where bought | series `zeroNote`, `icon` |
+| cards | StatTile: label + tinted series icon, period, 32px light figure + unit, sparkline fading into the glass, footnote | `cardIcons: false` to drop icons |
+| type | Urbanist, loaded from Google Fonts if the page doesn't have it | `loadFonts: false` to self-host |
+
+To switch any of these off for a theme of your own: `registerTheme({ name: 'mine', extends: 'harmony', chart: { valuePills: false, futureHatch: false } })`.
+
+Fonts and chrome follow CSS variables on the chart element: `--efc-font`, `--efc-surface`, `--efc-ink`, `--efc-accent`, `--efc-glass`, …
 
 ---
 
@@ -425,7 +484,11 @@ TypeScript definitions ship in `types/`.
 | `theme`, `mode` | see §6 | `energy`, `auto` |
 | `height` | px | `420` |
 | `curve` | `'linear' \| 'step'` | `linear` |
-| `rangeMode`, `weekDays` | `'day'` (locked) / `'week'` (free), days in week mode | `'day'`, `7` |
+| `rangeMode`, `weekDays` | `'day'` (locked) / `'week'` / `'custom'` (free), days in week mode | `'day'`, `7` |
+| `customRange`, `customRangeLimit` | `['YYYY-MM-DD', 'YYYY-MM-DD']` starts in Custom; `false` lets the pickers leave the loaded days | none, `true` |
+| `smoothing` | moving average over N blocks, drawing only | `0` |
+| `panel`, `loadFonts` | Harmony glass panel; load Urbanist | theme, `true` |
+| `onCustomRange(from, to)` | a custom range was picked | none |
 | `toolbar` | `true`, `false`, or `{ range, stepper, view, todScale, lock, export }` | `true` |
 | `stickyHover` | crosshair / zone stays pinned when the pointer leaves | `true` |
 | `exportBand` | PNG export includes the readout band | `true` |

@@ -72,7 +72,7 @@ export default function TodayPage() {
           <div><h3 className="eg-card__title">Energy supply <Chip tone="accent" live>Live</Chip></h3><p className="eg-card__sub">{plant} · 15-minute blocks · production chart from this repo (EnergyFlowChart, Harmony theme)</p></div>
           <Seg label="Colour scheme" size="sm" value={scheme} onChange={setScheme} options={[{ v: 'harmony', label: 'Harmony' }, { v: 'volt', label: 'Volt' }, { v: 'verdant', label: 'Verdant' }, { v: 'aurora', label: 'Aurora' }]} />
         </div>
-        <EnergyFlowBoard data={energy} theme={scheme} mode="auto" height={420} cardsClassName="eg-grid cards6" gap={16} />
+        <EnergyFlowBoard data={energy} theme={scheme} mode="auto" height={420} panel={false /* this section is already the glass panel */} cardsClassName="eg-grid cards6" gap={16} />
       </section>
 
       <div className="two">

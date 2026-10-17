@@ -115,6 +115,13 @@ const harmonyDark = {
   good: '#68e78e',
   bad: '#ff8f7e',
   live: '#68e78e',
+  // glass tokens (design-system/tokens/tokens.json: glass, glass-strong, line, surface-2)
+  glass: 'rgba(255,255,255,0.055)',
+  glassStrong: 'rgba(255,255,255,0.10)',
+  well: '#13202b',
+  onAccent: '#03200e',
+  shadowEdge: 'inset 0 1px 0 rgba(255,255,255,0.10)',
+  shadowFloat: '0 24px 60px -20px rgba(0,0,0,0.65)',
 };
 const harmonyLight = {
   surface: '#ffffff',
@@ -131,12 +138,20 @@ const harmonyLight = {
   good: '#12723a',
   bad: '#b8392a',
   live: '#12723a',
+  glass: 'rgba(255,255,255,0.72)',
+  glassStrong: 'rgba(255,255,255,0.92)',
+  well: '#f5f8f3',
+  onAccent: '#ffffff',
+  shadowEdge: 'inset 0 1px 0 rgba(255,255,255,0.9)',
+  shadowFloat: '0 24px 60px -24px rgba(0,40,20,0.22)',
 };
 // Price roles shared by the Harmony family (PriceProfile, PriceLandscape).
 const priceRolesDark = { dam: '#5cc8f0', rtm: '#d9e86a', gdam: '#4fd1a5', marginalVC: '#ff8f7e', spareVC: '#f2f6f3', buyWindow: 'rgba(217,232,106,0.09)', sellWindow: 'rgba(92,200,240,0.10)' };
 const priceRolesLight = { dam: '#1c78ae', rtm: '#7a7f00', gdam: '#0e7f5c', marginalVC: '#b8392a', spareVC: '#000b1a', buyWindow: 'rgba(122,127,0,0.08)', sellWindow: 'rgba(28,120,174,0.08)' };
 
-const harmonyChart = { curve: 'smooth', fill: 'gradient', glow: true, demandDash: '1.5 5', heatmap: 'landscape' };
+// Harmony chart behaviour (design-system/components/SupplyChart): monotone curves, fades, glowing tops,
+// dotted demand, a cursor that rests on the latest block, value pills, outlined tick pills, hatched future.
+const harmonyChart = { curve: 'smooth', fill: 'gradient', glow: true, demandDash: '1.5 5', heatmap: 'landscape', restCursor: true, valuePills: true, tickPills: true, futureHatch: true };
 const harmonyFont = 'Urbanist, "Avenir Next", "Segoe UI", system-ui, sans-serif';
 
 // sources: renewable (combined) · solar · wind · hydro · localBattery · govBattery · grid · market · surplus
@@ -194,7 +209,7 @@ export function getTheme(nameOrTheme) {
   if (nameOrTheme && typeof nameOrTheme === 'object') {
     return nameOrTheme.light ? nameOrTheme : registerTheme({ name: 'custom', ...nameOrTheme });
   }
-  return themes[nameOrTheme] || themes.energy;
+  return themes[nameOrTheme] || themes.harmony; // the ergOS design system is the default look
 }
 
 /** 'auto' follows <html data-theme> first, then the OS preference. */
@@ -226,6 +241,13 @@ export function applyThemeVars(el, theme, mode) {
   for (const k of ['surface', 'page', 'ink', 'ink2', 'muted', 'grid', 'axis', 'border', 'tooltip', 'band', 'accent']) {
     el.style.setProperty(`--efc-${k}`, t[k]);
   }
+  // glass tokens fall back to the surface for classic themes
+  el.style.setProperty('--efc-glass', t.glass || t.surface);
+  el.style.setProperty('--efc-glass-strong', t.glassStrong || t.surface);
+  el.style.setProperty('--efc-well', t.well || t.surface);
+  el.style.setProperty('--efc-on-accent', t.onAccent || t.surface);
+  el.style.setProperty('--efc-shadow-edge', t.shadowEdge || 'none');
+  el.style.setProperty('--efc-shadow-float', t.shadowFloat || 'none');
   for (const k of ['good', 'bad']) {
     if (t[k]) el.style.setProperty(`--efc-${k}`, t[k]);
     else el.style.removeProperty(`--efc-${k}`);
