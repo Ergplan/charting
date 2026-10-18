@@ -34,9 +34,18 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // Harmony layout: a row of value pills above the plot and outlined tick pills below it.
 const HARMONY_MARGIN = { top: 64, bottom: 40 };
 // Source → icon (design-system iconography: solar, wind, hydro, exchange, grid pylon, battery).
-const ROLE_ICON = { renewable: 'solar', solar: 'solar', wind: 'wind', hydro: 'hydro', market: 'exchange', grid: 'pylon', localBattery: 'battery', govBattery: 'battery', surplus: 'surplus', demand: 'bolt' };
+const ROLE_ICON = { renewable: 'solar', solar: 'solar', wind: 'wind', hydro: 'hydro', market: 'exchange', grid: 'pylon', localBattery: 'battery', govBattery: 'battery', surplus: 'surplus', demand: 'bolt', bessCharge: 'battery', banked: 'bank', wasted: 'curtail' };
 // What a zero reads as in the band (design system: notes explain zeros).
-const ZERO_NOTE = { market: 'Not purchased', grid: 'Not drawn', renewable: 'No generation', solar: 'No generation', wind: 'No generation', hydro: 'No generation', localBattery: 'Idle', govBattery: 'Idle', surplus: 'None' };
+const ZERO_NOTE = { market: 'Not purchased', grid: 'Not drawn', renewable: 'No generation', solar: 'No generation', wind: 'No generation', hydro: 'No generation', localBattery: 'Idle', govBattery: 'Idle', surplus: 'None', bessCharge: 'Not charging', banked: 'None', wasted: 'None' };
+// What energy above demand did (non-zero): it was never a purchase, so say where it went.
+const FLOW_NOTE = { bessCharge: 'Into the battery', banked: 'To the DISCOM bank', wasted: 'Curtailed', surplus: 'Not purchased' };
+/** Vertical battery (SoC gauge) as inline SVG markup; `soc` 0–100. Library-owned markup only. */
+function batterySVG(soc, color, low) {
+  const s = Math.max(0, Math.min(100, Number.isFinite(soc) ? soc : 0)) / 100;
+  const H = 27;
+  const fill = low ? 'var(--efc-bad, #d03b3b)' : color;
+  return `<svg viewBox="0 0 20 38" width="20" height="38" aria-hidden="true"><rect x="6.5" y="0.75" width="7" height="3" rx="1" fill="currentColor" opacity=".55"/><rect x="1.25" y="3.5" width="17.5" height="33.5" rx="4.5" fill="none" stroke="currentColor" stroke-opacity=".55" stroke-width="1.5"/><rect class="efc-bess-level" x="4" y="${(6.5 + (1 - s) * H).toFixed(2)}" width="12" height="${(H * s).toFixed(2)}" rx="2" fill="${fill}"/></svg>`;
+}
 /** Dark or light text for a pill filled with `hex`. */
 function inkOn(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
@@ -449,7 +458,7 @@ export class EnergyFlowChart {
     // chips (visible series only), flowing with wrap
     const hidden = this.store.get().hidden;
     const priced = !!this.data?.prices;
-    const chipH = priced ? 46 : 32;
+    const chipH = priced || this.bessEl ? 46 : 32;
     let x = pad;
     y += 10;
     for (const [k, c] of Object.entries(this.chips || {})) {
@@ -465,6 +474,23 @@ export class EnergyFlowChart {
       text(x + 18, y + 16, label, { size: 11.5, fill: t.ink2 });
       text(x + 18, y + 31, val, { size: 13, weight: 700 });
       if (price) text(x + 18, y + 44, price, { size: 11, fill: t.muted });
+      x += w;
+    }
+    if (this.bessEl && this.bessParts?.soc) {
+      // battery cell (SoC gauge + status), drawn like the on-screen one
+      const pct = this.bessParts.pct.textContent;
+      const state = this.bessParts.state.textContent;
+      const dest = this.bessParts.dest?.textContent || '';
+      const w = 36 + Math.max(width(pct, 700, 13), width(state, 400, 11), width(dest, 400, 11)) + 16;
+      if (x + w > W - pad) { x = pad; y += chipH + 4; }
+      const soc = parseFloat(pct) || 0;
+      const lv = Math.max(0, Math.min(100, soc)) / 100;
+      s('rect', { x: x + 5.5, y: y + 2, width: 7, height: 3, rx: 1, fill: t.ink2 }, g);
+      s('rect', { x: x + 0.75, y: y + 4.5, width: 17.5, height: 33.5, rx: 4.5, fill: 'none', stroke: t.ink2, 'stroke-width': 1.5 }, g);
+      s('rect', { x: x + 3.5, y: y + 7.5 + (1 - lv) * 27, width: 12, height: 27 * lv, rx: 2, fill: soc < 20 ? (t.bad || '#d03b3b') : this.colorMap[this.bessParts.soc.key] || t.accent }, g);
+      text(x + 28, y + 14, `${(this.bessParts.soc.label || 'BESS').replace(/\s*SoC$/i, '')} ${pct}`, { size: 12, weight: 700 }); // same wording as the band
+      text(x + 28, y + 29, state, { size: 11, fill: t.ink2 });
+      if (dest) text(x + 28, y + 43, dest, { size: 11, fill: t.muted });
       x += w;
     }
     y += chipH + 10;
@@ -651,7 +677,7 @@ export class EnergyFlowChart {
     // Lines (demand) first, then the stack top-down, matching the chart.
     const ordered = [...this.series.filter((x) => x.type === 'line'), ...this.series.filter((x) => x.type === 'area').reverse()];
     for (const ser of ordered) {
-      if (ser.legend === false) continue;
+      if (ser.legend === false || ser.type === 'state') continue;
       const b = h('button', { type: 'button', class: 'efc-chip', 'aria-pressed': String(!hidden.has(ser.key)), title: 'Click to toggle, hover to highlight' }, this.legendEl);
       const iconName = ser.icon ?? ROLE_ICON[ser.role || ser.key];
       if (this._harmony() && ser.type !== 'line' && icons[iconName]) {
@@ -674,6 +700,84 @@ export class EnergyFlowChart {
       b.addEventListener('mouseleave', () => this.store.setHighlight(null));
       b.addEventListener('focus', () => this.store.setHighlight([ser.key]));
       b.addEventListener('blur', () => this.store.setHighlight(null));
+    }
+    this._buildBess();
+  }
+
+  /** The BESS cell in the band: a small vertical battery with SoC, its status, and banked / wasted so far. */
+  _buildBess() {
+    this.bessEl?.remove();
+    this.bessEl = null;
+    const soc = this.series.find((x) => x.role === 'soc' || x.type === 'state');
+    const dest = this.series.some((x) => ['bessCharge', 'banked', 'wasted'].includes(x.role));
+    if (!soc && !dest) return;
+    this.bessEl = h('div', { class: 'efc-band-bess', role: 'group', 'aria-label': 'Battery and surplus' });
+    this.bandEl.insertBefore(this.bessEl, this.bandSum);
+    this.bessParts = { soc };
+    if (soc) {
+      this.bessParts.gauge = h('span', { class: 'efc-bess-gauge' }, this.bessEl);
+      const txt = h('div', { class: 'efc-bess-txt' }, this.bessEl);
+      h('span', { class: 'efc-bess-label', text: soc.label?.replace(/\s*SoC$/i, '') || 'BESS' }, txt);
+      this.bessParts.pct = h('b', { class: 'efc-bess-pct' }, txt);
+      this.bessParts.state = h('span', { class: 'efc-bess-state' }, txt);
+    }
+    if (dest) this.bessParts.dest = h('div', { class: 'efc-bess-dest' }, this.bessEl);
+  }
+
+  /** SoC (0–100) at sample i; values above 100 are read as kWh when bessCapacityKWh is set. */
+  _socAt(i) {
+    const key = this.bessParts?.soc?.key;
+    const v = key != null ? this.data.values[key]?.[i] : NaN;
+    if (!Number.isFinite(v)) return NaN;
+    const cap = this.opts.bessCapacityKWh;
+    return cap && (this.bessParts.soc.unit === 'kWh' || v > 100) ? (v / cap) * 100 : v;
+  }
+
+  _fillBess(ctx) {
+    if (!this.bessEl) return;
+    const P = this.bessParts;
+    const role = (r) => this.series.find((x) => x.role === r && !this.store.get().hidden.has(x.key));
+    const charge = role('bessCharge');
+    const out = role('localBattery');
+    const hh = this.data.stepMinutes / 60;
+    // energy over the context: a contiguous span, or a ToD zone's (non-contiguous) blocks
+    const sum = (key) => {
+      const arr = this.data.values[key] || [];
+      let e = 0;
+      if (ctx.list) for (const k of ctx.list) e += arr[k] || 0;
+      else for (let k = ctx.a; k <= ctx.b; k++) e += arr[k] || 0;
+      return e * hh;
+    };
+    if (P.soc) {
+      const soc = this._socAt(ctx.socIndex);
+      const color = this.colorMap[P.soc.key] || this.t.accent;
+      P.gauge.innerHTML = batterySVG(soc, color, soc < 20); // library-owned markup
+      P.pct.textContent = Number.isFinite(soc) ? `${fmtNumber(soc, 0)}%` : '–';
+      const cap = this.opts.bessCapacityKWh;
+      const stored = cap && Number.isFinite(soc) ? ` · ${fmtEnergy((soc / 100) * cap, { digits: 1 })}` : '';
+      let state;
+      if (ctx.kind === 'block') {
+        const c = charge ? this.data.values[charge.key]?.[ctx.i] || 0 : 0;
+        const d = out ? this.data.values[out.key]?.[ctx.i] || 0 : 0;
+        state = c > 0 ? `Charging ${fmtNumber(c, 0)} kW` : d > 0 ? `Discharging ${fmtNumber(d, 0)} kW` : 'Idle';
+        this.bessEl.dataset.state = c > 0 ? 'charging' : d > 0 ? 'discharging' : 'idle';
+      } else {
+        const c = charge ? sum(charge.key) : 0;
+        const d = out ? sum(out.key) : 0;
+        state = `In ${fmtEnergy(c, { digits: 1 })} · out ${fmtEnergy(d, { digits: 1 })}`;
+        this.bessEl.dataset.state = 'period';
+      }
+      P.state.textContent = `${state}${stored}`;
+    }
+    if (P.dest) {
+      // banked / wasted energy: up to the cursor (timeline) or over the zone / range (ToD)
+      const parts = [];
+      for (const r of ['banked', 'wasted']) {
+        const ser = role(r);
+        if (!ser) continue;
+        parts.push(`${ser.label || r} ${fmtEnergy(sum(ser.key), { digits: 1 })}`);
+      }
+      P.dest.textContent = parts.length ? `${parts.join(' · ')}${ctx.kind === 'block' ? ' so far' : ''}` : '';
     }
   }
 
@@ -1285,11 +1389,26 @@ export class EnergyFlowChart {
           const rate = priceOf(k);
           if (Number.isFinite(rate)) note += ` · ${fmtPrice(rate, { ...this.opts.priceFormat, compact: true })}`;
         }
+        else if (FLOW_NOTE[ser?.role] && !Number.isFinite(pr)) note = ser.note ?? FLOW_NOTE[ser.role]; // above demand
         else if (Number.isFinite(pr)) note = `@ ${fmtPrice(pr, this.opts.priceFormat)}`;
         else if (this.data.prices?.[k]) note = '@ –';
         else if (ser?.type === 'line' || !this.data.prices) note = ser?.note ?? '\u00a0'; // height kept, no jump
         else note = 'Not purchased'; // priced data, unpriced source (e.g. exported surplus)
         c.price.textContent = note;
+      }
+    }
+
+    // battery / surplus cell: same instant (timeline) or zone / range (ToD) as the readings
+    if (this.bessEl) {
+      const [i0, i1] = this.span || [0, -1];
+      if (this.opts.view === 'tod') {
+        const z = st.hoverZone ? (this.todCols || [])[st.hoverZone.index] : null;
+        const list = z ? z.indices : null;
+        this._fillBess({ kind: 'zone', list, a: i0, b: i1, socIndex: list && list.length ? list[list.length - 1] : i1 });
+      } else {
+        const hov = st.hover != null && st.hover >= i0 && st.hover <= i1;
+        const i = hov ? st.hover : i1;
+        this._fillBess({ kind: 'block', i, a: i0, b: i, socIndex: i1 < i0 ? NaN : i });
       }
     }
 
@@ -1606,7 +1725,7 @@ export class EnergyFlowChart {
     const hr = h('tr', {}, thead);
     h('th', { text: 'Time' }, hr);
     if (this.data.block) h('th', { text: 'Block' }, hr);
-    for (const c of cols) h('th', { text: `${c.label || c.key} (${this.opts.unit})` }, hr);
+    for (const c of cols) h('th', { text: `${c.label || c.key} (${c.unit || this.opts.unit})` }, hr);
     const tb = h('tbody', {}, table);
     this._rows = {};
     for (let i = i0; i <= i1; i++) {

@@ -1118,6 +1118,86 @@ test('smoothing: curves drawn from a moving average; readings, cards and totals 
   assert.equal(b.chart.gLines.querySelector('[data-key="demand"][stroke-dasharray]').getAttribute('d'), rawPath, 'off again');
 });
 
+// ================================================================== BESS, banked, wasted (v1.5)
+// synthetic BESS columns on top of synth(): charge 06:00–10:00, discharge 18:00–20:00, SoC ramps
+function synthBess(opts = {}) {
+  const raw = synth(opts);
+  raw.header = [...raw.header, 'BESS Charge (kW)', 'BESS SoC (%)', 'Banked (kW)'];
+  let soc = 20;
+  raw.rows = raw.rows.map((r) => {
+    const b = r[1];
+    const charge = b > 24 && b <= 40 ? 400 : 0;
+    const dis = b > 72 && b <= 80 ? 500 : 0;
+    soc = Math.max(0, Math.min(100, soc + (charge * 0.25 - dis * 0.25) / 40)); // 4 MWh
+    const row = [...r];
+    if (dis) { row[7] = dis; row[6] = row[6] - dis; } // discharge serves demand instead of the grid
+    const banked = Math.min(row[5], 100); // part of the (12:00–13:00) surplus is banked
+    return [...row, charge, +soc.toFixed(2), banked];
+  });
+  return raw;
+}
+
+test('BESS columns: To BESS / Banked / Wasted replace Surplus; SoC is not drawn as a band', async () => {
+  const { chart: el, cards } = host();
+  const b = track(await mount(el, { data: synthBess(), cards }));
+  await frames();
+  const keys = b.chart.series.map((x) => x.key);
+  for (const k of ['bessCharge', 'banked', 'wasted', 'bessSoc']) assert.ok(keys.includes(k), k);
+  assert.ok(!keys.includes('surplus'), 'undivided surplus replaced');
+  assert.ok(!b.chart.chips.bessSoc, 'no SoC chip');
+  assert.ok(!b.chart.gAreas.querySelector('[data-key="bessSoc"]'), 'SoC not stacked');
+  const [i0] = b.chart.span;
+  const i = i0 + 50 - 1; // 12:15–12:30: surplus 150, banked 100 → wasted 50
+  assert.equal(b.chart.data.values.wasted[i], 50);
+  assert.ok([...cards.querySelectorAll('.efc-card-label')].some((x) => x.textContent === 'BESS SoC'), 'SoC card added by default');
+});
+
+test('no BESS columns → nothing new appears (backwards compatible)', async () => {
+  const b = track(await mount(host().chart, { data: synth() }));
+  await frames();
+  const keys = b.chart.series.map((x) => x.key);
+  for (const k of ['bessCharge', 'banked', 'wasted', 'bessSoc']) assert.ok(!keys.includes(k), k);
+  assert.ok(keys.includes('surplus'));
+  assert.ok(!b.chart.bandEl.querySelector('.efc-band-bess'), 'no battery cell');
+});
+
+test('battery in the band: SoC at the cursor, charging / discharging / idle, banked so far', async () => {
+  const b = track(await mount(host().chart, { data: synthBess() }));
+  await frames();
+  const [i0] = b.chart.span;
+  const cell = b.chart.bandEl.querySelector('.efc-band-bess');
+  assert.ok(cell && cell.querySelector('svg .efc-bess-level'), 'battery gauge');
+  const at = (block) => { b.chart.store.set({ hover: i0 + block - 1 }); return cell.textContent; };
+  const soc = (block) => Math.round(b.chart.data.values.bessSoc[i0 + block - 1]);
+  assert.match(at(30), new RegExp(`${soc(30)}%`));
+  assert.match(at(30), /Charging 400 kW/);
+  assert.equal(cell.dataset.state, 'charging');
+  assert.match(at(76), /Discharging 500 kW/);
+  assert.equal(cell.dataset.state, 'discharging');
+  assert.match(at(60), /Idle/);
+  assert.match(at(60), /Banked 100 kWh · Wasted 50 kWh so far/, 'banked 12:00–13:00: 4 blocks × 100 kW × ¼ h; wasted 4 × 50 × ¼');
+  const level = +cell.querySelector('.efc-bess-level').getAttribute('height');
+  assert.close(level, 27 * soc(60) / 100, 0.6, 'gauge height ∝ SoC');
+  assert.equal(b.chart.chips.bessCharge.price.textContent, 'Not charging', 'zero note');
+  at(30);
+  assert.equal(b.chart.chips.bessCharge.price.textContent, 'Into the battery', 'non-zero: where it went');
+});
+
+test('battery in ToD: SoC at the end of the zone, energy in / out; PNG export carries the battery', async () => {
+  const b = track(await mount(host().chart, { data: synthBess(), view: 'tod' }));
+  await frames();
+  const cols = b.chart.todCols;
+  const zi = cols.findIndex((c) => c.name === 'Peak' && c.a === 1140); // 19:00–24:00
+  const z = cols[zi];
+  b.chart.store.set({ hoverZone: { index: zi, label: z.name, range: z.range, indices: z.indices } });
+  const cell = b.chart.bandEl.querySelector('.efc-band-bess').textContent;
+  const end = Math.round(b.chart.data.values.bessSoc[z.indices.at(-1)]);
+  assert.match(cell, new RegExp(`${end}%`));
+  assert.match(cell, /In 0\.0 kWh · out 500 kWh/, '19:00–20:00 discharge: 4 × 500 kW × ¼ h');
+  const svg = b.chart.exportSVG();
+  assert.ok(svg.textContent.includes(`BESS ${end}%`), 'battery in the exported band');
+});
+
 // ------------------------------------------------------------------ run
 const rowsEl = document.getElementById('rows');
 const results = [];

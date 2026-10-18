@@ -89,7 +89,9 @@ export function fromBlockRows(rows, opts) {
 
   const values = {};
   for (const [key, col] of Object.entries(columns)) values[key] = rows.map((r) => num(r[col]));
-  return { t, stepMinutes: blockMinutes, values, block, inferredDays: constantDate };
+  // which mapped columns the export actually has (optional series, e.g. BESS, appear only when present)
+  const present = Object.entries(columns).filter(([, col]) => rows.some((r) => r[col] != null && r[col] !== '')).map(([k]) => k);
+  return { t, stepMinutes: blockMinutes, values, block, inferredDays: constantDate, present };
 }
 
 /**
@@ -112,15 +114,17 @@ export function fromRecords(rows, { time, columns, stepMinutes }) {
   const order = rows.map((r, i) => [toMs(get(r)), i]).sort((a, b) => a[0] - b[0]);
   const t = order.map((o) => o[0]);
   const values = {};
+  const present = [];
   for (const [key, col] of Object.entries(columns)) {
     const acc = typeof col === 'function' ? col : (r) => r[col];
+    if (rows.some((r) => { const v = acc(r); return v != null && v !== ''; })) present.push(key);
     values[key] = order.map(([, i]) => num(acc(rows[i])));
   }
   if (!stepMinutes) {
     const gaps = t.slice(1).map((v, i) => v - t[i]).sort((a, b) => a - b);
     stepMinutes = gaps.length ? gaps[gaps.length >> 1] / MIN : 15;
   }
-  return { t, stepMinutes, values };
+  return { t, stepMinutes, values, present };
 }
 
 /** Minimal RFC-4180 CSV parser → array of records keyed by header. */
@@ -253,6 +257,33 @@ export function withPrices(dataset, spec) {
     prices[key] = dataset.t.map((t, i) => fn(t, i, dataset));
   }
   return { ...dataset, prices };
+}
+
+/**
+ * Where the surplus went. Everything above demand is either charged into the BESS, banked
+ * with the DISCOM, or wasted (curtailed). When the export has the charge and/or banked
+ * columns, the undivided `surplus` layer is replaced by those layers; `wasted` is the rest
+ * of the surplus unless the export states it. Without those columns the dataset is unchanged.
+ */
+export function allocateSurplus(dataset, keys = { surplus: 'surplus', charge: 'bessCharge', banked: 'banked', wasted: 'wasted' }) {
+  const has = (k) => (dataset.present ? dataset.present.includes(k) : !!dataset.values[k]?.some((v) => v));
+  if (!has(keys.charge) && !has(keys.banked) && !has(keys.wasted)) return dataset;
+  const v = dataset.values;
+  const n = dataset.t.length;
+  const sur = v[keys.surplus] || new Array(n).fill(0);
+  const ch = v[keys.charge] || new Array(n).fill(0);
+  const bk = v[keys.banked] || new Array(n).fill(0);
+  const statedWaste = has(keys.wasted);
+  const wa = statedWaste ? v[keys.wasted] : sur.map((s, i) => Math.max(0, s - (ch[i] || 0) - (bk[i] || 0)));
+  const present = new Set(dataset.present || []);
+  [keys.charge, keys.banked, keys.wasted].forEach((k) => present.add(k));
+  present.delete(keys.surplus); // the split replaces the undivided layer
+  return {
+    ...dataset,
+    values: { ...v, [keys.charge]: ch.slice(), [keys.banked]: bk.slice(), [keys.wasted]: wa.slice(), [keys.surplus]: new Array(n).fill(0) },
+    present: [...present],
+    surplusSplit: true,
+  };
 }
 
 export const time = { MIN, DAY };

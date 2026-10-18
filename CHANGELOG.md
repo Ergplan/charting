@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.5.0 — battery (BESS) and where the surplus went
+
+Added
+- **Surplus destinations**: with `BESS Charge`, `Banked` (and optionally `Wasted`) columns, the undivided "Surplus RE" layer splits into **To BESS**, **Banked** and **Wasted**, hatched above the demand line. Wasted defaults to surplus − charge − banked. `allocateSurplus()`, preset `prepare`.
+- **BESS discharge** labelled as such in the supply stack (below demand).
+- **Battery in the band**: a small vertical battery showing SoC at the cursor (red under 20%), ▲ Charging / ▼ Discharging / Idle with kW, and banked / wasted so far. In ToD: SoC at the end of the zone and the energy in / out. Included in the PNG export.
+- `type: 'state'` series (SoC): read by the battery and cards, never stacked or drawn.
+- Cards `bessSoc` (added to the defaults when SoC exists), `bessCharged`, `banked`, `wasted`; metric `format: 'soc'`.
+- Notes for above-demand layers: "Into the battery", "To the DISCOM bank", "Curtailed".
+- `bessCapacityKWh` for SoC in kWh; datasets carry `present` (columns found), so optional series appear only when the data has them.
+- Icons `bank`, `curtail`; roles `bessCharge`, `banked`, `wasted`, `soc` in every theme.
+- `demo/bess-sample.js`: illustrative 4 MWh / 1 MW battery for the demos.
+
+Changed
+- The "Local battery" label is now "BESS discharge".
+- CSV and table headers use each series' own unit (SoC in %).
+
+
 ## 1.4.1 — blended price and cost in the band
 
 - The readout band's summary now shows **Blended price** (volume-weighted ₹/kWh across the sources that supplied power) and **Block cost** in the timeline (kW × block hours × price), or **Cost** in ToD. "Avg price" was renamed to "Blended price".

@@ -35,6 +35,8 @@ export const icons = {
   wind: '<path d="M12 10.4v11.1M9 21.5h6"/><circle cx="12" cy="9" r="1.4"/><path d="M12 7.6c-.5-2.3-.1-4.3 1.1-5.6.9 1.6.5 3.7-1.1 5.6z"/><path d="M12 7.6c-.5-2.3-.1-4.3 1.1-5.6.9 1.6.5 3.7-1.1 5.6z" transform="rotate(120 12 9)"/><path d="M12 7.6c-.5-2.3-.1-4.3 1.1-5.6.9 1.6.5 3.7-1.1 5.6z" transform="rotate(240 12 9)"/>',
   hydro: '<path d="M12 2.8s-5.3 5.8-5.3 9.9a5.3 5.3 0 0 0 10.6 0c0-4.1-5.3-9.9-5.3-9.9z"/><path d="M9.4 13.2c.9.7 1.8.7 2.6 0s1.8-.7 2.6 0"/><path d="M2.5 21.2c1.6-1 3.2-1 4.8 0s3.2 1 4.7 0 3.2-1 4.8 0 3.1 1 4.7 0"/>',
   exchange: '<path d="M4 8.5h13.5M14 4.5l4 4-4 4"/><path d="M20 15.5H6.5M10 11.5l-4 4 4 4"/>',
+  bank: '<path d="M3 9.5 12 4l9 5.5"/><path d="M5.5 10.5v7M10 10.5v7M14 10.5v7M18.5 10.5v7"/><path d="M3 20.5h18"/>',
+  curtail: '<path d="M12 3v2.5M5 6l1.8 1.8M19 6l-1.8 1.8M3 13.5h2.5M18.5 13.5H21"/><path d="M8 13.5a4 4 0 0 1 8 0"/><path d="M3.5 20.5 20.5 3.5"/>',
   pylon: '<path d="M12 2.5 7 21.5M12 2.5l5 19"/><path d="M4.5 7h15M6.5 11.5h11"/><path d="M4.5 7v2M19.5 7v2M8.6 15.6l6.8 3.9M15.4 15.6l-6.8 3.9"/>',
 };
 
@@ -44,6 +46,7 @@ const FORMATS = {
   energy: (v) => fmtEnergy(v),
   power: (v, m) => fmtPower(v, { unit: m.unit || 'kW' }),
   percent: (v) => fmtPercent(v, 0),
+  soc: (v) => (Number.isFinite(v) ? `${fmtNumber(v, 0)} %` : '–'), // state of charge, 0–100
   number: (v) => fmtNumber(v, 2),
   price: (v) => fmtPrice(v),
   money: (v) => fmtMoney(v),
@@ -274,14 +277,15 @@ export class EnergyCards {
         live.zone = !!zone;
       } else if (zone && m.instant !== false && keys.length) {
         // ToD column hovered: the card shows that zone's share of its metric
-        if (m.agg === 'max') live = [zone.label, fmtPower(Math.max(0, ...zone.indices.map((ix) => keys.reduce((a, k) => a + (this.data.values[k]?.[ix] ?? 0), 0))), { unit: m.unit || 'kW' })];
+        if (m.format === 'soc') { const last = zone.indices[zone.indices.length - 1]; live = [zone.label, last != null ? `${fmtNumber(this.data.values[keys[0]]?.[last] ?? NaN, 0)}% at end` : '–']; } // SoC at the zone's end
+        else if (m.agg === 'max') live = [zone.label, fmtPower(Math.max(0, ...zone.indices.map((ix) => keys.reduce((a, k) => a + (this.data.values[k]?.[ix] ?? 0), 0))), { unit: m.unit || 'kW' })];
         else live = [zone.label, fmtEnergy(zone.indices.reduce((a, ix) => a + keys.reduce((b, k) => b + (this.data.values[k]?.[ix] ?? 0), 0), 0) * h, { digits: 1 })];
         live.zone = true;
       } else if (i != null && m.instant !== false) {
         if (typeof m.instant === 'function') live = m.instant(i, this.data);
         else if (keys.length) {
           const kw = keys.reduce((a, k) => a + (this.data.values[k]?.[i] ?? 0), 0);
-          live = [`${fmtBlockTime(this.data.t[i])}`, fmtPower(kw, { unit: m.unit || 'kW' })];
+          live = [`${fmtBlockTime(this.data.t[i])}`, m.format === 'soc' ? `${fmtNumber(kw, 0)}%` : fmtPower(kw, { unit: m.unit || 'kW' })];
         }
       }
       if (live) {

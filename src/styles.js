@@ -74,6 +74,20 @@ export const css = `
 .efc-band-when b { font-size: 13px; font-weight: 650; color: var(--efc-ink); white-space: nowrap; }
 .efc-band-when span { font-size: 11.5px; color: var(--efc-muted); white-space: nowrap; }
 .efc-band-items { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-content: center; gap: 2px 2px; padding: 4px 6px; }
+/* BESS cell: vertical battery (SoC) + status, and banked / wasted so far */
+.efc-band-bess { flex: none; display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 9px; align-items: center; align-content: center; padding: 6px 14px; border-left: 1px solid var(--efc-border); }
+.efc-bess-gauge { grid-row: 1 / 3; display: grid; color: var(--efc-ink2); }
+.efc-bess-txt { display: grid; line-height: 1.2; }
+.efc-bess-label { font-size: 11px; color: var(--efc-muted); }
+.efc-bess-pct { font-size: 15px; font-weight: 650; color: var(--efc-ink); font-variant-numeric: tabular-nums; }
+.efc-bess-state { font-size: 11px; color: var(--efc-ink2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.efc-band-bess[data-state="charging"] .efc-bess-state::before { content: "▲ "; color: var(--efc-good, #0a8a0a); }
+.efc-band-bess[data-state="discharging"] .efc-bess-state::before { content: "▼ "; color: var(--efc-accent); }
+.efc-bess-dest { grid-column: 2; font-size: 11px; color: var(--efc-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.efc-band-bess:not(:has(.efc-bess-gauge)) .efc-bess-dest { grid-column: 1 / 3; }
+.efc-bess-level { transition: y .25s ease, height .25s ease; }
+@media (prefers-reduced-motion: reduce) { .efc-bess-level { transition: none; } }
+@media (max-width: 760px) { .efc-band-bess { border-left: 0; border-top: 1px solid var(--efc-border); width: 100%; } }
 .efc-band-sum { flex: none; display: flex; align-items: center; gap: 16px; padding: 6px 14px; border-left: 1px solid var(--efc-border); }
 .efc-band-sum div { display: flex; flex-direction: column; gap: 1px; }
 .efc-band-sum span { font-size: 11px; color: var(--efc-muted); white-space: nowrap; }

@@ -36,7 +36,7 @@ export function toDataset(input, cfg) {
  * Cards to show. `metrics` may mix preset card ids ('demand', 'grid', 'avgPrice', ...) with
  * full Metric objects; omitted → the preset's short default list (+ price card when priced).
  */
-export function resolveMetrics(requested, preset, priced) {
+export function resolveMetrics(requested, preset, priced, present = []) {
   const library = [...(preset.metrics || []), ...(preset.priceMetrics || [])];
   const byId = (id) => {
     const m = library.find((x) => x.id === id);
@@ -45,7 +45,8 @@ export function resolveMetrics(requested, preset, priced) {
   };
   if (typeof requested === 'string') requested = requested.split(',').map((x) => x.trim()).filter(Boolean);
   if (Array.isArray(requested)) return requested.map((m) => (typeof m === 'string' ? byId(m) : m)).filter(Boolean);
-  const ids = [...(preset.defaultCards || library.map((x) => x.id)), ...(priced ? preset.defaultPriceCards || [] : [])];
+  const optional = Object.entries(preset.defaultOptionalCards || {}).filter(([key]) => present.includes(key)).map(([, id]) => id);
+  const ids = [...(preset.defaultCards || library.map((x) => x.id)), ...optional, ...(priced ? preset.defaultPriceCards || [] : [])];
   return ids.map(byId).filter(Boolean);
 }
 
@@ -64,18 +65,21 @@ export async function mount(target, options = {}) {
     let src = input;
     if (typeof src === 'string' && !src.includes('\n') && !src.includes(',')) src = await fetchRows(src, cfg.fetchOptions);
     let ds = toDataset(src, cfg);
+    if (cfg.prepare) ds = cfg.prepare(ds); // preset step, e.g. split the surplus into BESS / banked / wasted
     if (cfg.prices) ds = withPrices(ds, typeof cfg.prices === 'function' ? cfg.prices(ds) : cfg.prices);
     return cfg.transform ? cfg.transform(ds) : ds;
   };
 
   const data = await build(cfg.data ?? cfg.url ?? cfg.rows ?? cfg.csv);
-  const { cards: cardsTarget, metrics, priceMetrics, cardsClickable, cardIcons, cardPeriod, url, rows, csv, preset: _p, prices: _pr, columns, dateKey, blockKey, timeKey, blockMinutes, time, transform, fetchOptions, refreshSeconds, ...chartOptions } = cfg;
-  const chart = new EnergyFlowChart(el, { ...chartOptions, data });
+  const { cards: cardsTarget, metrics, priceMetrics, cardsClickable, cardIcons, cardPeriod, url, rows, csv, preset: _p, prices: _pr, columns, dateKey, blockKey, timeKey, blockMinutes, time, transform, prepare, fetchOptions, refreshSeconds, defaultCards, defaultPriceCards, defaultOptionalCards, ...chartOptions } = cfg;
+  // optional series (BESS, banked, wasted, SoC) only when the data has them; the undivided surplus goes once it's split
+  const seriesFor = (ds) => (cfg.series || []).filter((s) => (!s.optional || !ds.present || ds.present.includes(s.key)) && !(s.key === 'surplus' && ds.surplusSplit));
+  const chart = new EnergyFlowChart(el, { ...chartOptions, series: seriesFor(data), data });
 
   let cards = null;
   const cardsEl = resolveEl(cardsTarget);
   if (cardsEl) {
-    const all = resolveMetrics(options.metrics, preset, !!data.prices);
+    const all = resolveMetrics(options.metrics, preset, !!data.prices, data.present || []);
     if (all.length) cards = new EnergyCards(cardsEl, { chart, metrics: all, minWidth: cfg.cardMinWidth, clickable: cfg.cardsClickable, icons: cfg.cardIcons, showPeriod: cfg.cardPeriod });
   }
 
@@ -85,7 +89,12 @@ export async function mount(target, options = {}) {
     cards,
     store: chart.store,
     /** Replace the data (URL / CSV / rows / Dataset). The view stays pinned to "now". */
-    async load(input) { chart.setData(await build(input)); },
+    async load(input) {
+      const next = await build(input);
+      const keys = (list) => list.map((s) => s.key).join();
+      if (keys(seriesFor(next)) !== keys(chart.series)) chart.setSeries(seriesFor(next)); // e.g. BESS columns appeared
+      chart.setData(next);
+    },
     destroy() { clearInterval(timer); cards?.destroy(); chart.destroy(); },
   };
   if (url && refreshSeconds) timer = setInterval(() => handle.load(url).catch((e) => console.warn(e)), refreshSeconds * 1000);

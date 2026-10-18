@@ -6,7 +6,7 @@ export { EnergyCards, createCards, icons } from './cards.js';
 export { createStore } from './store.js';
 export { computeTod, normaliseZones, DEFAULT_TOD_ZONES } from './tod.js';
 export { themes, registerTheme, getTheme, resolveMode, resolveSeriesColors, applyThemeVars } from './themes.js';
-export { fromBlockRows, fromRecords, fromTable, parseCSV, withPrices, aggregator, indexSpan, nearestIndex } from './data.js';
+export { fromBlockRows, fromRecords, fromTable, parseCSV, withPrices, allocateSurplus, aggregator, indexSpan, nearestIndex } from './data.js';
 export { mount, autoMount, toDataset } from './mount.js';
 export { presets, energySupplyPreset, SAMPLE_PRICES } from './presets.js';
 export * as format from './format.js';

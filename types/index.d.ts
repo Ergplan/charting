@@ -7,6 +7,10 @@ export interface Dataset {
   values: Record<string, number[]>;
   /** currency per kWh per sample, per series (see withPrices) */
   prices?: Record<string, number[]>;
+  /** Series keys whose columns exist in the source data. */
+  present?: string[];
+  /** True once the undivided surplus has been split into BESS / banked / wasted. */
+  surplusSplit?: boolean;
   block?: number[];
   inferredDays?: boolean;
 }
@@ -17,7 +21,12 @@ export interface Series {
   key: string;
   label?: string;
   /** 'area' (default) stacks; 'line' overlays (e.g. demand). */
-  type?: 'area' | 'line';
+  /** 'area' stacks, 'line' overlays, 'state' (e.g. SoC) is never drawn: read by the band battery and cards. */
+  type?: 'area' | 'line' | 'state';
+  /** Unit for tables/CSV when it isn't the chart unit (e.g. '%' for SoC, 'kWh'). */
+  unit?: string;
+  /** Show only when the data has this column (BESS, banked, wasted, SoC). */
+  optional?: boolean;
   /** Stack group name (default 'supply'); `false` draws an unstacked translucent area. */
   stack?: string | false;
   /** Semantic role used to pick a theme colour: renewable | localBattery | govBattery | grid | market | surplus | demand | any custom role. */
@@ -144,6 +153,8 @@ export interface ChartOptions {
   panel?: boolean | null;
   /** Harmony: load Urbanist from Google Fonts if missing (default true). */
   loadFonts?: boolean;
+  /** BESS capacity: SoC values above 100 (or series unit 'kWh') are read as kWh; the band shows stored energy. */
+  bessCapacityKWh?: number;
   weekDays?: number;
   /** Built-in toolbar (range, stepper, view, ToD scale, Lock Y axis, Export PNG). true/false or per control. */
   toolbar?: boolean | { custom?: boolean; dates?: boolean; range?: boolean; stepper?: boolean; view?: boolean; todScale?: boolean; lock?: boolean; export?: boolean };
@@ -231,12 +242,12 @@ export interface Metric {
   /** Series the card represents (summed when several). Hover highlights, click toggles them. */
   series?: string | string[];
   agg?: 'energy' | 'sum' | 'avg' | 'max' | 'min' | 'last' | 'avgPrice' | 'cost' | ((a: Aggregator, data: Dataset) => number);
-  format?: 'energy' | 'power' | 'percent' | 'number' | 'price' | 'money' | ((v: number) => string);
+  format?: 'energy' | 'power' | 'percent' | 'number' | 'price' | 'money' | 'soc' | ((v: number) => string);
   unit?: string;
   description?: string | ((a: Aggregator, value: number, data: Dataset) => string);
   /** Instant reading while the chart is hovered. Return [time, value] or a string; false disables. */
   instant?: false | ((index: number, data: Dataset) => string | [string, string] | null);
-  icon?: 'bolt' | 'sun' | 'battery' | 'grid' | 'market' | 'leaf' | 'peak' | 'rupee' | 'surplus' | 'plug' | false;
+  icon?: 'bolt' | 'sun' | 'battery' | 'grid' | 'market' | 'leaf' | 'peak' | 'rupee' | 'surplus' | 'plug' | 'solar' | 'wind' | 'hydro' | 'exchange' | 'pylon' | 'bank' | 'curtail' | false;
   color?: string;
   sparkline?: boolean;
   /** Click toggles the series in the chart (default true when `series` is set). */
@@ -258,6 +269,8 @@ export declare const DEFAULT_TOD_ZONES: TodZone[];
 export declare function normaliseZones(zones: TodZone[]): (TodZone & { zi: number; a: number; b: number })[];
 export declare function computeTod(data: Dataset, zones: TodZone[], i0: number, i1: number, keys: string[]): TodColumn[];
 export type PriceSpec = number | number[] | { tod: { start: string; end: string; price: number }[]; base?: number } | ((t: number, i: number, data: Dataset) => number);
+/** Split the undivided surplus into bessCharge / banked / wasted (wasted = remainder unless given). */
+export declare function allocateSurplus(data: Dataset, keys?: { surplus?: string; charge?: string; banked?: string; wasted?: string }): Dataset;
 export declare function withPrices(data: Dataset, spec: Record<string, PriceSpec>): Dataset;
 export declare const SAMPLE_PRICES: Record<string, PriceSpec>;
 

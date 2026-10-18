@@ -54,7 +54,7 @@ It works on **any website**: plain HTML with one `<script>` tag, React, Next.js,
 <div id="cards"></div>
 <div data-energy-flow data-src="/api/energy.json" data-cards="#cards"></div>
 
-<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.4.1/dist/energy-flow-chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.5.0/dist/energy-flow-chart.min.js"></script>
 ```
 
 That's all. The script finds every `[data-energy-flow]` element and mounts a chart on it.
@@ -103,7 +103,7 @@ ES-module sites can import the single-file module instead:
 ### C. React / Next.js
 
 ```bash
-npm i github:Ergplan/charting#v1.4.1       # package name: energy-flow-chart
+npm i github:Ergplan/charting#v1.5.0       # package name: energy-flow-chart
 ```
 
 ```jsx
@@ -225,6 +225,33 @@ prices: (ds) => ({ market: rawRows.map((r) => +r['IEX Price (₹/kWh)']) })
 ```
 
 ---
+
+## 3a. Battery (BESS) and surplus: banked, charged or wasted
+
+Everything above the demand line is surplus, and it goes one of three ways. When your data says which, the chart shows it:
+
+- **To BESS:** charged into the battery (hatched, battery colour, just above demand)
+- **Banked:** sent to the DISCOM bank (hatched)
+- **Wasted:** curtailed (hatched, grey)
+- **BESS discharge:** sits *below* demand in the supply stack, like any other source serving the load
+- **A small vertical battery** in the band above the chart shows the **SoC** at the cursor, with ▲ Charging / ▼ Discharging / Idle and the kW, and the banked and wasted energy so far that day. In ToD it shows SoC at the end of the hovered zone, plus the energy in and out. It's also drawn into the exported PNG.
+- A **BESS SoC** card joins the default cards. Pick more by id: `bessSoc`, `bessCharged`, `banked`, `wasted`.
+
+**Data contract for the dev team.** Add these columns to the 15-minute rows. They are all optional, and the chart is unchanged without them:
+
+| series key | default column | unit | meaning |
+|---|---|---|---|
+| `bessCharge` | `BESS Charge (kW)` | kW | power going **into** the battery (from surplus or from the grid) |
+| `localBattery` | `Local Battery (kW)` | kW | power coming **out** of the battery to the load (discharge) |
+| `bessSoc` | `BESS SoC (%)` | % | state of charge at the end of the block, 0–100 |
+| `banked` | `Banked (kW)` | kW | surplus sent to the DISCOM bank |
+| `wasted` | `Wasted (kW)` | kW | surplus curtailed. **Optional:** when absent, it is `Surplus − BESS Charge − Banked` (never below 0) |
+
+Different headers? Map them: `columns: { bessCharge: 'BESS_IN_kW', bessSoc: 'SOC_pct', banked: 'Bank_kW', wasted: 'Curtail_kW' }`. If SoC comes as kWh, set the series unit and the capacity: `bessCapacityKWh: 4000` (values above 100 are then read as kWh), and the band adds the stored energy ("64% · 2.6 MWh").
+
+**One rule to keep the stack honest:** the source columns (renewable, grid, exchange, BESS discharge…) hold only the power that **served demand**, so they add up to demand. Power that did not serve demand (charging, banked, wasted) belongs only in its own column. If your grid meter includes the power used to charge the battery, subtract it from `Grid Supply` and put it in `BESS Charge`. Otherwise it would be drawn twice.
+
+The demo uses illustrative BESS data (`demo/bess-sample.js`: a 4 MWh / 1 MW battery that charges from surplus, tops up off-peak and discharges in the evening peak).
 
 ## 4. Range modes, views, pinning and export
 

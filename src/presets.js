@@ -3,7 +3,8 @@
 // Pass `preset: 'energy-supply'` to mount() and only override what differs.
 
 import { DEFAULT_TOD_ZONES } from './tod.js';
-import { fmtNumber } from './format.js';
+import { fmtNumber, fmtEnergy } from './format.js';
+import { allocateSurplus } from './data.js';
 
 const pct = (a, b) => (b > 0 ? `${fmtNumber((a / b) * 100, 0)}%` : '0%');
 
@@ -17,6 +18,11 @@ export const energySupplyPreset = {
     localBattery: 'Local Battery (kW)',
     market: 'Energy Market (kW)',
     govBattery: 'Government Battery (kW)',
+    // BESS and surplus destinations (optional: shown only when the export has them; rename to your headers)
+    bessCharge: 'BESS Charge (kW)',
+    bessSoc: 'BESS SoC (%)',
+    banked: 'Banked (kW)',
+    wasted: 'Wasted (kW)',
   },
   dateKey: 'Date',
   blockKey: 'Block',
@@ -24,19 +30,32 @@ export const energySupplyPreset = {
   /** declaration order = stack order, bottom → top */
   series: [
     { key: 'renewable', label: 'Renewable', role: 'renewable' },
-    { key: 'localBattery', label: 'Local battery', role: 'localBattery' },
+    { key: 'localBattery', label: 'BESS discharge', role: 'localBattery' },
     { key: 'govBattery', label: 'Gov battery', role: 'govBattery' },
     { key: 'grid', label: 'Grid', role: 'grid' },
     { key: 'market', label: 'Market (IEX)', role: 'market' },
+    // above demand: where the surplus went (charged into the BESS, banked, or wasted)
+    { key: 'bessCharge', label: 'To BESS', role: 'bessCharge', pattern: 'hatch', countInTotal: false, optional: true, zeroNote: 'Not charging' },
+    { key: 'banked', label: 'Banked', role: 'banked', pattern: 'hatch', countInTotal: false, optional: true },
+    { key: 'wasted', label: 'Wasted', role: 'wasted', pattern: 'hatch', countInTotal: false, optional: true },
     { key: 'surplus', label: 'Surplus RE', role: 'surplus', pattern: 'hatch', countInTotal: false },
     { key: 'demand', label: 'Demand', role: 'demand', type: 'line', dash: '6 4' },
+    // state of charge: not drawn as a band; read by the battery in the band and the SoC card
+    { key: 'bessSoc', label: 'BESS SoC', role: 'soc', type: 'state', unit: '%', optional: true },
   ],
+  /** split the undivided surplus into charge / banked / wasted when the export says where it went */
+  prepare: (ds) => allocateSurplus(ds),
   metrics: [
     { id: 'demand', label: 'Total Demand', series: 'demand', icon: 'bolt', description: 'Energy consumed' },
     { id: 'renewable', label: 'Renewable', series: 'renewable', icon: 'sun', description: (a) => `${pct(a.energy('renewable'), a.energy('demand'))} of demand` },
     { id: 'grid', label: 'Grid', series: 'grid', icon: 'grid', description: 'From grid meters' },
     { id: 'market', label: 'Exchange (IEX)', series: 'market', icon: 'market', description: (a) => `${pct(a.energy('market'), a.energy('demand'))} of demand` },
-    { id: 'localBattery', label: 'Local Battery', series: 'localBattery', icon: 'battery', description: 'Discharged to load' },
+    { id: 'localBattery', label: 'BESS Discharge', series: 'localBattery', icon: 'battery', description: 'Discharged to load' },
+    { id: 'bessSoc', label: 'BESS SoC', series: 'bessSoc', agg: 'last', format: 'soc', icon: 'battery', toggle: false,
+      description: (a) => `Charged ${fmtEnergy(a.energy('bessCharge'), { digits: 1 })} · out ${fmtEnergy(a.energy('localBattery'), { digits: 1 })}` },
+    { id: 'bessCharged', label: 'To BESS', series: 'bessCharge', icon: 'battery', description: 'Surplus charged into the BESS' },
+    { id: 'banked', label: 'Banked', series: 'banked', icon: 'bank', description: 'Surplus banked with the DISCOM' },
+    { id: 'wasted', label: 'Wasted', series: 'wasted', icon: 'curtail', description: 'Surplus curtailed' },
     { id: 'govBattery', label: 'Gov Battery', series: 'govBattery', icon: 'battery', description: 'Discharged' },
     { id: 'surplus', label: 'Surplus RE', series: 'surplus', icon: 'surplus', description: 'Above demand' },
     { id: 'peak', label: 'Peak Demand', series: 'demand', agg: 'max', icon: 'peak', toggle: false },
@@ -48,6 +67,8 @@ export const energySupplyPreset = {
   ],
   /** cards shown when `metrics` isn't given; any card id above can be picked instead */
   defaultCards: ['demand', 'renewable', 'grid', 'market', 'peak'],
+  /** added to the defaults when the data has them */
+  defaultOptionalCards: { bessSoc: 'bessSoc' },
   defaultPriceCards: ['avgPrice'],
   todZones: DEFAULT_TOD_ZONES,
   live: { series: 'demand' },

@@ -5,7 +5,7 @@ import { fmtBlockTime, isoDay } from './format.js';
 const esc = (v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
 
 export function toCSV(dataset, series, i0 = 0, i1 = dataset.t.length - 1, unit = 'kW') {
-  const head = ['Date', 'Time', ...(dataset.block ? ['Block'] : []), ...series.map((s) => `${s.label || s.key} (${unit})`)];
+  const head = ['Date', 'Time', ...(dataset.block ? ['Block'] : []), ...series.map((s) => `${s.label || s.key} (${s.unit || unit})`)];
   const lines = [head.map(esc).join(',')];
   for (let i = i0; i <= i1; i++) {
     const t = dataset.t[i];

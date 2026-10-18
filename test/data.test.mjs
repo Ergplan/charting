@@ -157,3 +157,22 @@ test('Harmony is the default theme; its chart style follows the design system', 
   assert.equal(themes.harmony.dark.glassStrong, tok('glass-strong').dark);
   assert.equal(themes.harmony.dark.well.toLowerCase(), tok('surface-2').dark.toLowerCase());
 });
+
+test('allocateSurplus: charge / banked / wasted replace the undivided surplus; untouched without BESS columns', async () => {
+  const { allocateSurplus } = await import('../src/data.js');
+  const base = { t: [1, 2, 3], stepMinutes: 15, values: { surplus: [500, 0, 300], bessCharge: [200, 400, 0], banked: [200, 0, 300] }, present: ['surplus', 'bessCharge', 'banked'] };
+  const a = allocateSurplus(base);
+  assert.deepEqual(a.values.wasted, [100, 0, 0], 'wasted = surplus − charge − banked (never negative; grid charging allowed)');
+  assert.deepEqual(a.values.surplus, [0, 0, 0], 'undivided layer emptied');
+  assert.ok(a.surplusSplit && a.present.includes('wasted') && !a.present.includes('surplus'));
+  const stated = allocateSurplus({ ...base, values: { ...base.values, wasted: [7, 7, 7] }, present: [...base.present, 'wasted'] });
+  assert.deepEqual(stated.values.wasted, [7, 7, 7], 'a stated wasted column wins');
+  const none = { t: [1], stepMinutes: 15, values: { surplus: [10] }, present: ['surplus'] };
+  assert.equal(allocateSurplus(none), none, 'no BESS / banked / wasted columns → unchanged');
+});
+
+test('presence: fromBlockRows records which mapped columns exist', async () => {
+  const { fromBlockRows } = await import('../src/data.js');
+  const ds = fromBlockRows([{ Date: '2026-09-01', Block: 1, A: 5 }], { columns: { a: 'A', b: 'B' } });
+  assert.deepEqual(ds.present, ['a']);
+});

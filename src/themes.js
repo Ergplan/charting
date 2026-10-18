@@ -186,6 +186,18 @@ Object.assign(themes, {
     ['#946500', '#946500', '#0f7f7b', '#1f5fb8', '#6e55c4', '#b23f7a', '#56617d', '#178a44', '#5e8f00']),
 });
 
+// BESS and surplus destinations in every built-in theme: charging takes the battery's hue,
+// banked the surplus hue, wasted a neutral; SoC (the battery gauge) the battery's hue.
+for (const th of Object.values(themes)) {
+  for (const mode of ['light', 'dark']) {
+    const r = th[mode].roles;
+    r.bessCharge ??= r.localBattery;
+    r.banked ??= r.surplus;
+    r.wasted ??= th[mode].muted;
+    r.soc ??= r.localBattery;
+  }
+}
+
 /** Register (or override) a theme. Missing chrome tokens fall back to the defaults. */
 export function registerTheme(theme) {
   if (!theme || !theme.name) throw new Error('registerTheme: theme.name is required');
