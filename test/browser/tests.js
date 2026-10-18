@@ -320,8 +320,8 @@ test('timeline hover with prices: per-block price per source, demand blank, zero
   b.chart.store.set({ hover: i0 + 50 - 1 }); // 12:15–12:30: surplus > 0, no price spec
   assert.equal(chipPrice(b.chart, 'surplus'), 'Not purchased');
   b.chart.store.set({ hover: i0 + 4 - 1 }); // 00:45: no solar, no market
-  assert.equal(chipPrice(b.chart, 'market'), 'Not purchased');
-  assert.equal(chipPrice(b.chart, 'renewable'), 'No generation');
+  assert.equal(chipPrice(b.chart, 'market'), 'Not purchased · ₹3.00', 'zero, but its rate is shown');
+  assert.equal(chipPrice(b.chart, 'renewable'), 'No generation · ₹4.00');
   assert.equal(chipPrice(b.chart, 'localBattery'), 'Idle');
 });
 
@@ -378,7 +378,7 @@ test('ToD hover: band shows zone volume, weighted price and cost per source', as
   assert.close(c.price.grid, (2 * 6 + 7 * 9) / 9, 1e-9, 'grid weighted price');
   const cost = ['renewable', 'grid', 'market'].reduce((s, k) => s + c.cost[k], 0);
   const vol = ['renewable', 'grid', 'market'].reduce((s, k) => s + c.energy[k], 0);
-  assert.equal(sumRow(b.chart, 'Avg price'), `₹${(cost / vol).toFixed(2)}/kWh`);
+  assert.equal(sumRow(b.chart, 'Blended price'), `₹${(cost / vol).toFixed(2)}/kWh`);
   assert.equal(sumRow(b.chart, 'Cost'), EF.format.fmtMoney(cost));
 });
 
@@ -1026,6 +1026,23 @@ test('band: source icons, "Block n of 96", zero notes', async () => {
   b.chart.store.set({ hover: i0 + 37 - 1 });
   assert.match(b.chart.bandWhen.textContent, /Block 37 of 96/);
   assert.equal(chipPrice(b.chart, 'localBattery'), 'Idle');
+});
+
+test('timeline band with prices: blended price (volume-weighted) and block cost; idle sources show their rate', async () => {
+  const b = track(await mount(host().chart, { data: synth(), prices: { ...PRICES, localBattery: 6.8 } }));
+  await frames();
+  const [i0] = b.chart.span;
+  const i = i0 + 64 - 1; // 15:30–15:45: grid ₹9, market ₹10, renewable ₹4
+  b.chart.store.set({ hover: i });
+  const v = (k) => b.chart.data.values[k][i];
+  const parts = [['renewable', 4], ['grid', 9], ['market', 10]].filter(([k]) => v(k) > 0);
+  const cost = parts.reduce((a, [k, p]) => a + v(k) * p, 0);
+  const vol = parts.reduce((a, [k]) => a + v(k), 0);
+  assert.equal(sumRow(b.chart, 'Blended price'), `₹${(cost / vol).toFixed(2)}/kWh`);
+  assert.equal(sumRow(b.chart, 'Block cost'), EF.format.fmtMoney(cost * 0.25), 'kW × ¼ h × price');
+  assert.equal(chipPrice(b.chart, 'localBattery'), 'Idle · ₹6.80', 'idle, but its rate is shown');
+  const svg = b.chart.exportSVG().textContent;
+  assert.ok(svg.includes('Blended price') && svg.includes('Block cost'), 'exported band carries the costs');
 });
 
 test('custom range: toolbar Custom shows the from → to pill; pickers drive the window', async () => {

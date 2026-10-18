@@ -54,7 +54,7 @@ It works on **any website**: plain HTML with one `<script>` tag, React, Next.js,
 <div id="cards"></div>
 <div data-energy-flow data-src="/api/energy.json" data-cards="#cards"></div>
 
-<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.4.0/dist/energy-flow-chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ergplan/charting@v1.4.1/dist/energy-flow-chart.min.js"></script>
 ```
 
 That's all. The script finds every `[data-energy-flow]` element and mounts a chart on it.
@@ -103,7 +103,7 @@ ES-module sites can import the single-file module instead:
 ### C. React / Next.js
 
 ```bash
-npm i github:Ergplan/charting#v1.4.0       # package name: energy-flow-chart
+npm i github:Ergplan/charting#v1.4.1       # package name: energy-flow-chart
 ```
 
 ```jsx
@@ -195,7 +195,7 @@ With **different sources altogether** (e.g. wind + DG + open access), pass your 
 
 ## 3. Prices: volume and average purchase price
 
-Supply `prices` and the hover band shows **volume and average ₹/kWh for every source**, plus a blended **Avg price** and total **Cost**. Two extra cards appear: *Avg Purchase Price* and *Purchase Cost*.
+Supply `prices` and the band above the chart shows **each source's ₹/kWh** (also for idle sources: "Idle · ₹6.80"), plus the **Blended price** (volume-weighted across the sources that supplied power) and the **cost**: **Block cost** for the hovered 15-minute block in the timeline, **Cost** for the zone in ToD. Two extra cards appear: *Avg Purchase Price* and *Purchase Cost*.
 
 ```js
 prices: {

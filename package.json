@@ -1,6 +1,6 @@
 {
   "name": "energy-flow-chart",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "ergOS charting library and the ergOS Harmony design system: zero-dependency energy charts (stacked supply, price landscape heatmap, price profile) with linked KPI cards, plus Harmony tokens, CSS components and runtime",
   "type": "module",
   "main": "src/index.js",

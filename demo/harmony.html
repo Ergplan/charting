@@ -23,7 +23,7 @@
   <header class="bar">
     <div>
       <h1 class="eg-h1">erg<em>OS</em> Harmony</h1>
-      <p class="note">The production charts from this repo in the Harmony theme, beside the design-system components. Sample data only.</p>
+      <p class="note">The production charts from this repo in the Harmony theme, beside the design-system components. Sample data and illustrative prices.</p>
     </div>
     <div class="eg-row">
       <div class="eg-seg eg-seg--glass" role="group" aria-label="Colour scheme" id="scheme">
@@ -52,9 +52,11 @@
 <script src="../design-system/harmony.js"></script>
 <script src="./data.js"></script>
 <script type="module">
-  import { mount, samplePriceYear, createPriceExplorer, dayIndexOf } from '../src/index.js';
+  import { mount, samplePriceYear, createPriceExplorer, dayIndexOf, SAMPLE_PRICES } from '../src/index.js';
 
-  const board = await mount('#chart', { data: window.ENERGY_DATA, cards: '#cards', theme: 'harmony', mode: 'auto', height: 420 });
+  // prices per source (₹/kWh) → each band reading shows its rate; the band adds blended price and cost.
+  // SAMPLE_PRICES is illustrative: plug in the DISCOM ToD tariff, IEX MCP per block and PPA rates.
+  const board = await mount('#chart', { data: window.ENERGY_DATA, cards: '#cards', theme: 'harmony', mode: 'auto', height: 420, prices: SAMPLE_PRICES });
   window.board = board; // handy for poking at in devtools
   const prices = samplePriceYear();
   const explorer = createPriceExplorer({ landscape: '#landscape', profile: '#profile', data: prices, day: dayIndexOf(prices, '2026-07-04'), mode: 'auto' });

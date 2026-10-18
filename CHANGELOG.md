@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.1 — blended price and cost in the band
+
+- The readout band's summary now shows **Blended price** (volume-weighted ₹/kWh across the sources that supplied power) and **Block cost** in the timeline (kW × block hours × price), or **Cost** in ToD. "Avg price" was renamed to "Blended price".
+- A source with zero volume still shows its rate beside its note ("Idle · ₹6.80", "Not purchased · ₹3.00").
+- `demo/harmony.html` and the ergOS demo's Today screen pass prices (`SAMPLE_PRICES`, illustrative), so each source shows its price in the band.
+
 ## 1.4.0 — Harmony by default, custom date range, smoothing
 
 Added

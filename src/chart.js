@@ -1279,7 +1279,12 @@ export class EnergyFlowChart {
         const pr = v ? priceOf(k) : NaN;
         const ser = this.series.find((x) => x.key === k);
         let note;
-        if (v === 0 && ser?.type !== 'line') note = ser.zeroNote ?? ZERO_NOTE[ser.role || ser.key] ?? 'None'; // zeros explain themselves
+        if (v === 0 && ser?.type !== 'line') {
+          // zeros explain themselves; a priced source still shows its rate ("Idle · ₹6.80")
+          note = ser.zeroNote ?? ZERO_NOTE[ser.role || ser.key] ?? 'None';
+          const rate = priceOf(k);
+          if (Number.isFinite(rate)) note += ` · ${fmtPrice(rate, { ...this.opts.priceFormat, compact: true })}`;
+        }
         else if (Number.isFinite(pr)) note = `@ ${fmtPrice(pr, this.opts.priceFormat)}`;
         else if (this.data.prices?.[k]) note = '@ –';
         else if (ser?.type === 'line' || !this.data.prices) note = ser?.note ?? '\u00a0'; // height kept, no jump
@@ -1311,9 +1316,11 @@ export class EnergyFlowChart {
       let cost = 0;
       let vol = 0;
       for (const x of priced) { const v = val(x.key); const p = priceOf(x.key); if (v > 0 && Number.isFinite(p)) { cost += v * p; vol += v; } }
-      out.push({ label: 'Avg price', value: vol > 0 ? fmtPrice(cost / vol, this.opts.priceFormat) : '–' });
-      // cost only makes sense for energy (ToD); a kW snapshot has no cost
-      if (this.opts.view === 'tod') out.push({ label: 'Cost', value: fmtMoney(cost, this.opts.priceFormat) });
+      // blended = volume-weighted price across the sources that supplied power
+      out.push({ label: 'Blended price', value: vol > 0 ? fmtPrice(cost / vol, this.opts.priceFormat) : '–' });
+      // ToD readings are kWh already; a timeline reading is kW over one block → × block hours
+      const kwh = this.opts.view === 'tod' ? 1 : this.data.stepMinutes / 60;
+      out.push({ label: this.opts.view === 'tod' ? 'Cost' : 'Block cost', value: Number.isFinite(cost) ? fmtMoney(cost * kwh, this.opts.priceFormat) : '–' });
     }
     if (demand && !hidden.has(demand.key)) {
       const dv = val(demand.key);
